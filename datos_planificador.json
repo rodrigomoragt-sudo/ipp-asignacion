@@ -1,0 +1,169 @@
+{
+  "cedis_total": 58105,
+  "ipp_total": 7896,
+  "ef_total": 5068,
+  "supervisores": {
+    "30": {
+      "zona": 30,
+      "total_clientes": 2507,
+      "clientes_ef": 177,
+      "clientes": 2507
+    },
+    "13": {
+      "zona": 13,
+      "total_clientes": 2298,
+      "clientes_ef": 262,
+      "clientes": 2298
+    },
+    "33": {
+      "zona": 33,
+      "total_clientes": 2459,
+      "clientes_ef": 154,
+      "clientes": 2459
+    },
+    "31": {
+      "zona": 31,
+      "total_clientes": 2357,
+      "clientes_ef": 179,
+      "clientes": 2357
+    },
+    "10": {
+      "zona": 10,
+      "total_clientes": 2310,
+      "clientes_ef": 145,
+      "clientes": 2310
+    },
+    "34": {
+      "zona": 34,
+      "total_clientes": 2474,
+      "clientes_ef": 189,
+      "clientes": 2474
+    },
+    "26": {
+      "zona": 26,
+      "total_clientes": 1765,
+      "clientes_ef": 151,
+      "clientes": 1765
+    },
+    "27": {
+      "zona": 27,
+      "total_clientes": 2093,
+      "clientes_ef": 259,
+      "clientes": 2093
+    },
+    "9": {
+      "zona": 9,
+      "total_clientes": 2419,
+      "clientes_ef": 136,
+      "clientes": 2419
+    },
+    "12": {
+      "zona": 12,
+      "total_clientes": 2064,
+      "clientes_ef": 229,
+      "clientes": 2064
+    },
+    "11": {
+      "zona": 11,
+      "total_clientes": 2129,
+      "clientes_ef": 244,
+      "clientes": 2129
+    },
+    "1": {
+      "zona": 1,
+      "total_clientes": 2579,
+      "clientes_ef": 67,
+      "clientes": 2579
+    },
+    "2": {
+      "zona": 2,
+      "total_clientes": 2198,
+      "clientes_ef": 67,
+      "clientes": 2198
+    },
+    "20": {
+      "zona": 20,
+      "total_clientes": 1737,
+      "clientes_ef": 127,
+      "clientes": 1737
+    },
+    "5": {
+      "zona": 5,
+      "total_clientes": 2346,
+      "clientes_ef": 54,
+      "clientes": 2346
+    },
+    "7": {
+      "zona": 7,
+      "total_clientes": 2240,
+      "clientes_ef": 29,
+      "clientes": 2240
+    },
+    "25": {
+      "zona": 25,
+      "total_clientes": 2025,
+      "clientes_ef": 126,
+      "clientes": 2025
+    },
+    "17": {
+      "zona": 17,
+      "total_clientes": 2459,
+      "clientes_ef": 21,
+      "clientes": 2459
+    },
+    "16": {
+      "zona": 16,
+      "total_clientes": 2491,
+      "clientes_ef": 22,
+      "clientes": 2491
+    },
+    "15": {
+      "zona": 15,
+      "total_clientes": 2506,
+      "clientes_ef": 22,
+      "clientes": 2506
+    },
+    "6": {
+      "zona": 6,
+      "total_clientes": 2739,
+      "clientes_ef": 37,
+      "clientes": 2739
+    },
+    "3": {
+      "zona": 3,
+      "total_clientes": 1955,
+      "clientes_ef": 58,
+      "clientes": 1955
+    },
+    "28": {
+      "zona": 28,
+      "total_clientes": 1730,
+      "clientes_ef": 167,
+      "clientes": 1730
+    },
+    "21": {
+      "zona": 21,
+      "total_clientes": 1817,
+      "clientes_ef": 122,
+      "clientes": 1817
+    },
+    "8": {
+      "zona": 8,
+      "total_clientes": 141,
+      "clientes_ef": 0,
+      "clientes": 141
+    },
+    "37": {
+      "zona": 37,
+      "total_clientes": 2220,
+      "clientes_ef": 147,
+      "clientes": 2220
+    },
+    "36": {
+      "zona": 36,
+      "total_clientes": 2047,
+      "clientes_ef": 96,
+      "clientes": 2047
+    }
+  }
+}

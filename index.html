@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planificador de Visitas - IPP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .tab-button.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* NOTIFICACIONES */
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+        }
+
+        .notification {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .notification.success {
+            border-left: 4px solid #28a745;
+        }
+
+        .notification.error {
+            border-left: 4px solid #dc3545;
+        }
+
+        .notification.info {
+            border-left: 4px solid #667eea;
+        }
+
+        .notification-icon {
+            font-size: 1.3em;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .notification-text {
+            flex: 1;
+            color: #333;
+            font-size: 0.95em;
+        }
+
+        .notification-close {
+            cursor: pointer;
+            color: #999;
+            font-size: 1.2em;
+            line-height: 1;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .notification.hide {
+            animation: slideOut 0.3s ease-out forwards;
+        }
+
+        /* PROGRESS BAR */
+        .download-progress {
+            display: none;
+            margin-top: 15px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .download-progress.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 0.85em;
+            color: #666;
+            text-align: center;
+        }
+
+        /* SPINNER */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            opacity: 0.9;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+
+        .config-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .config-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95em;
+        }
+
+        thead {
+            background: #f5f5f5;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            font-weight: 600;
+            color: #333;
+        }
+
+        tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-scheduled {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        .file-upload label {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .file-upload label:hover {
+            background: #764ba2;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .close {
+            float: right;
+            font-size: 2em;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .tab-button {
+                width: 100%;
+            }
+
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📅 Planificador de Visitas</h1>
+            <p>Sistema inteligente de planificación de rutas - IPP</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab-button" onclick="switchTab('configurar')">Configurar Plan</button>
+            <button class="tab-button" onclick="switchTab('cronograma')">Cronograma</button>
+            <button class="tab-button" onclick="switchTab('exportar')">Exportar</button>
+        </div>
+
+        <!-- TAB: DASHBOARD -->
+        <div id="dashboard" class="tab-content active">
+            <h2>Dashboard General</h2>
+            <div class="dashboard" id="statsDashboard">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Cargando datos...</p>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h3>📁 Cargar y Actualizar Datos</h3>
+                <p style="margin-bottom: 15px;">Los datos se cargan automáticamente. Usa el botón para actualizar dinámicamente los clientes IPP.</p>
+                <button onclick="loadData()" style="margin-right: 10px;">🔄 Recargar Dashboard</button>
+                <button onclick="actualizarIPP()" class="secondary">📊 Actualizar Clientes IPP Mes</button>
+                <div id="ippStatus" style="margin-top: 10px; font-size: 0.9em;"></div>
+            </div>
+
+            <div class="config-section">
+                <h3>[^] Cargar Datos Actualizados</h3>
+                <p style="margin-bottom: 15px;">Selecciona los archivos Excel actualizados para reemplazar los datos actuales.</p>
+                <div id="uploadArea" style="border: 2px dashed #667eea; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 20px; cursor: pointer; background: #f9f9f9;">
+                    <p style="margin: 10px 0; color: #667eea; font-weight: 600;">Arrastra archivos aquí o haz click</p>
+                    <input type="file" id="fileInput" multiple accept=".xlsx" style="display: none;">
+                    <p style="margin: 10px 0; font-size: 0.85em; color: #999;">Soportados: .xlsx (Excel)</p>
+                </div>
+                <div id="uploadStatus" style="margin-bottom: 20px;"></div>
+                <button onclick="enviarArchivos()" style="background: #28a745; margin-right: 10px;">↑ Enviar Archivos</button>
+                <button class="secondary" onclick="limpiarUpload()">Cancelar</button>
+            </div>
+
+            <div class="config-section">
+                <h3>[*] Descargar Plantillas de Datos</h3>
+                <p style="margin-bottom: 20px;">Descarga las plantillas para actualizar información de clientes. Llena los datos y vuelve a subir.</p>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                    <!-- Archivo 1: Clientes CEDIS -->
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #667eea;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <span style="font-size: 1.5em; margin-right: 10px;">[-]</span>
+                            <div>
+                                <h4 style="margin: 0; color: #333;">Clientes CEDIS</h4>
+                                <p style="margin: 3px 0; font-size: 0.85em; color: #666;">Maestro de 58,105 clientes</p>
+                            </div>
+                        </div>
+                        <p style="margin: 10px 0; font-size: 0.9em; color: #555;">Red de distribuidoras CEDIS - Información de todos los clientes de la red.</p>
+                        <button onclick="descargarPlantilla('Clientes CEDIS')" style="width: 100%; margin-top: 10px;">v Descargar Plantilla</button>
+                    </div>
+
+                    <!-- Archivo 2: Clientes Equipo Frío -->
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #667eea;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <span style="font-size: 1.5em; margin-right: 10px;">[-]</span>
+                            <div>
+                                <h4 style="margin: 0; color: #333;">Clientes Equipo Frío</h4>
+                                <p style="margin: 3px 0; font-size: 0.85em; color: #666;">5,068 clientes activos</p>
+                            </div>
+                        </div>
+                        <p style="margin: 10px 0; font-size: 0.9em; color: #555;">Clientes con equipo de refrigeración instalado - Prioridad máxima en visitas.</p>
+                        <button onclick="descargarPlantilla('Clientes Equipo Frío')" style="width: 100%; margin-top: 10px;">v Descargar Plantilla</button>
+                    </div>
+
+                    <!-- Archivo 3: Clientes IPP Mes Actual -->
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <span style="font-size: 1.5em; margin-right: 10px;">[-]</span>
+                            <div>
+                                <h4 style="margin: 0; color: #333;">Clientes IPP Mes Actual</h4>
+                                <p style="margin: 3px 0; font-size: 0.85em; color: #666;">417 clientes encuestados</p>
+                            </div>
+                        </div>
+                        <p style="margin: 10px 0; font-size: 0.9em; color: #555;">Clientes encuestados en julio 2026 - Datos del mes en curso.</p>
+                        <button onclick="descargarPlantilla('Clientes IPP Mes Actual')" style="width: 100%; margin-top: 10px;">v Descargar Plantilla</button>
+                    </div>
+
+                    <!-- Archivo 4: Clientes IPP Últimos 3 Meses -->
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #667eea;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <span style="font-size: 1.5em; margin-right: 10px;">[-]</span>
+                            <div>
+                                <h4 style="margin: 0; color: #333;">Clientes IPP Últimos 3 Meses</h4>
+                                <p style="margin: 3px 0; font-size: 0.85em; color: #666;">1,408 clientes encuestados</p>
+                            </div>
+                        </div>
+                        <p style="margin: 10px 0; font-size: 0.9em; color: #555;">Clientes con encuestas realizadas en los últimos 3 meses - Histórico.</p>
+                        <button onclick="descargarPlantilla('Clientes IPP Últimos 3 Meses')" style="width: 100%; margin-top: 10px;">v Descargar Plantilla</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h3>📊 Resumen por Supervisor</h3>
+                <div class="table-responsive">
+                    <table id="supervisoresTable">
+                        <thead>
+                            <tr>
+                                <th>Zona (Supervisor)</th>
+                                <th>Total Clientes</th>
+                                <th>Clientes EF</th>
+                                <th>% EF</th>
+                                <th>Días Necesarios (20/día)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="supervisoresBody">
+                            <tr><td colspan="5" class="loading">Cargando datos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: CONFIGURAR PLAN -->
+        <div id="configurar" class="tab-content">
+            <h2>Configurar Plan de Visitas</h2>
+
+            <div class="config-section">
+                <h3>⚙️ Parámetros de Planificación</h3>
+                <div class="config-grid">
+                    <div class="form-group">
+                        <label for="mes">Mes a Planificar</label>
+                        <select id="mes">
+                            <option value="7">Julio 2026</option>
+                            <option value="8">Agosto 2026</option>
+                            <option value="9">Septiembre 2026</option>
+                            <option value="10">Octubre 2026</option>
+                            <option value="11">Noviembre 2026</option>
+                            <option value="12">Diciembre 2026</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="inicioVisitas">Inicio de Visitas (Día del Mes: 1-31)</label>
+                        <input type="number" id="inicioVisitas" value="5" min="1" max="31">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="finVisitas">Fin de Visitas (Día del Mes: 1-31)</label>
+                        <input type="number" id="finVisitas" value="27" min="1" max="31">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="visitasPorDia">Visitas por Día por Supervisor</label>
+                        <input type="number" id="visitasPorDia" value="20" min="1" max="50">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="supervisor">Filtrar por Supervisor (Zona)</label>
+                        <select id="supervisor">
+                            <option value="">Todos</option>
+                            <option value="1">Zona 1</option>
+                            <option value="2">Zona 2</option>
+                            <option value="3">Zona 3</option>
+                            <option value="5">Zona 5</option>
+                            <option value="6">Zona 6</option>
+                            <option value="7">Zona 7</option>
+                            <option value="8">Zona 8</option>
+                            <option value="9">Zona 9</option>
+                            <option value="10">Zona 10</option>
+                            <option value="11">Zona 11</option>
+                            <option value="12">Zona 12</option>
+                            <option value="13">Zona 13</option>
+                            <option value="15">Zona 15</option>
+                            <option value="16">Zona 16</option>
+                            <option value="17">Zona 17</option>
+                            <option value="20">Zona 20</option>
+                            <option value="21">Zona 21</option>
+                            <option value="25">Zona 25</option>
+                            <option value="26">Zona 26</option>
+                            <option value="27">Zona 27</option>
+                            <option value="28">Zona 28</option>
+                            <option value="30">Zona 30</option>
+                            <option value="31">Zona 31</option>
+                            <option value="33">Zona 33</option>
+                            <option value="34">Zona 34</option>
+                            <option value="36">Zona 36</option>
+                            <option value="37">Zona 37</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="config-grid" style="margin-top: 15px;">
+                    <div class="form-group">
+                        <label for="excluyeDias">Días de Exclusión (ej: fin de mes, vacaciones)</label>
+                        <input type="text" id="excluyeDias" placeholder="Ej: 1,2,3,28,29,30,31">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="diasNoVisita">Días sin visitas en la semana (0=Lun, 1=Mar, 2=Mié, 3=Jue, 4=Vie, 5=Sáb, 6=Dom)</label>
+                        <input type="text" id="diasNoVisita" placeholder="Ej: 5,6" value="5,6">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="generarPlan()">🎯 Generar Plan</button>
+                    <button class="secondary" onclick="resetearPlan()">🔄 Limpiar</button>
+                </div>
+            </div>
+
+            <div id="mensajePlan"></div>
+        </div>
+
+        <!-- TAB: CRONOGRAMA -->
+        <div id="cronograma" class="tab-content">
+            <h2>Cronograma de Visitas</h2>
+            <div id="cronogramaContent">
+                <p style="text-align: center; color: #999; padding: 40px;">
+                    Genera un plan primero en la pestaña "Configurar Plan"
+                </p>
+            </div>
+        </div>
+
+        <!-- TAB: EXPORTAR -->
+        <div id="exportar" class="tab-content">
+            <h2>Exportar Plan</h2>
+            <div class="config-section">
+                <h3>📥 Descargar Plan en Excel</h3>
+                <p style="margin-bottom: 15px;">Descarga el plan generado en formato Excel para compartir con los supervisores.</p>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button id="btnExcel" onclick="exportarExcel()" style="margin-right: 10px;">📊 Descargar Excel</button>
+                    <button id="btnCSV" class="secondary" onclick="exportarCSV()">📄 Descargar CSV</button>
+                    <span id="downloadSpinner" class="spinner" style="display: none;"></span>
+                </div>
+
+                <div id="downloadProgress" class="download-progress">
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <div class="progress-text">Descargando... <span id="progressPercent">0</span>%</div>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h3>📋 Información de Exportación</h3>
+                <div id="exportInfo">
+                    <p style="color: #999;">No hay plan generado para exportar</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para detalles -->
+    <div id="detailsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        let globalData = {
+            plan: null,
+            supervisores: {}
+        };
+
+        const API_URL = '/api';
+
+        // Cambiar entre tabs
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Cargar datos
+        async function loadData() {
+            try {
+                const response = await fetch(`${API_URL}/data`);
+                const data = await response.json();
+                globalData.supervisores = data.supervisores;
+
+                updateDashboard(data);
+            } catch (error) {
+                document.getElementById('statsDashboard').innerHTML =
+                    `<div class="message error">Error al cargar datos: ${error.message}</div>`;
+            }
+        }
+
+        // Actualizar dashboard
+        function updateDashboard(data) {
+            const statsHtml = `
+                <div class="stat-card">
+                    <h3>Total Clientes CEDIS</h3>
+                    <div class="value">${data.cedis_total.toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Clientes con Equipo Frío</h3>
+                    <div class="value">${data.ef_total.toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Supervisores</h3>
+                    <div class="value">${Object.keys(data.supervisores).length}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Clientes IPP Mes Actual</h3>
+                    <div class="value" id="ippMesActual">417</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Clientes IPP 3 Meses</h3>
+                    <div class="value">1408</div>
+                </div>
+            `;
+            document.getElementById('statsDashboard').innerHTML = statsHtml;
+
+            let tableHtml = '';
+            for (const [zona, info] of Object.entries(data.supervisores)) {
+                const diasNecesarios = Math.ceil(info.total_clientes / 20);
+                const porcentajeEF = ((info.clientes_ef / info.total_clientes) * 100).toFixed(1);
+                tableHtml += `
+                    <tr>
+                        <td><strong>Zona ${info.zona}</strong></td>
+                        <td>${info.total_clientes}</td>
+                        <td>${info.clientes_ef}</td>
+                        <td>${porcentajeEF}%</td>
+                        <td>${diasNecesarios}</td>
+                    </tr>
+                `;
+            }
+            document.getElementById('supervisoresBody').innerHTML = tableHtml;
+        }
+
+        // Generar plan
+        async function generarPlan() {
+            const mes = parseInt(document.getElementById('mes').value) || 7;
+            const inicioVisitas = parseInt(document.getElementById('inicioVisitas').value) || 5;
+            const finVisitas = parseInt(document.getElementById('finVisitas').value) || 27;
+            const visitasPorDia = parseInt(document.getElementById('visitasPorDia').value) || 20;
+            const supervisor = document.getElementById('supervisor').value || '';
+
+            // Validar que fin sea mayor que inicio
+            if (finVisitas <= inicioVisitas) {
+                mostrarNotificacion('error', 'Fecha fin debe ser después de fecha inicio');
+                return;
+            }
+
+            // Procesar días de exclusión
+            const excluyeDiasStr = document.getElementById('excluyeDias').value.trim();
+            const excluyeDias = excluyeDiasStr ?
+                excluyeDiasStr.split(',').map(d => {
+                    const num = parseInt(d.trim());
+                    return !isNaN(num) ? num : null;
+                }).filter(d => d !== null)
+                : [28, 29, 30, 31];
+
+            // Procesar días sin visita
+            const diasNoVisitaStr = document.getElementById('diasNoVisita').value.trim();
+            const diasNoVisita = diasNoVisitaStr ?
+                diasNoVisitaStr.split(',').map(d => {
+                    const num = parseInt(d.trim());
+                    return !isNaN(num) ? num : null;
+                }).filter(d => d !== null)
+                : [5, 6];
+
+            const mensajeDiv = document.getElementById('mensajePlan');
+            mensajeDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Generando plan...</p></div>';
+
+            try {
+                const response = await fetch(`${API_URL}/generar-plan`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mes: parseInt(mes),
+                        ano: 2026,
+                        inicio_visitas: inicioVisitas,
+                        fin_visitas: finVisitas,
+                        visitas_por_dia: visitasPorDia,
+                        dias_exclusion: excluyeDias,
+                        dias_sin_visita: diasNoVisita,
+                        supervisor: supervisor
+                    })
+                });
+
+                const resultado = await response.json();
+
+                if (resultado.success) {
+                    globalData.plan = resultado.plan;
+                    mensajeDiv.innerHTML = `
+                        <div class="message success">
+                            <strong>Plan generado exitosamente!</strong><br>
+                            ${Object.keys(resultado.plan.supervisores).length} supervisores |
+                            ${resultado.plan.dias_habiles} días hábiles
+                        </div>
+                    `;
+                    mostrarCronograma(resultado.plan);
+                    updateExportInfo(resultado.plan);
+                } else {
+                    mensajeDiv.innerHTML = `<div class="message error">Error: ${resultado.error}</div>`;
+                }
+            } catch (error) {
+                mensajeDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Mostrar cronograma
+        function mostrarCronograma(plan) {
+            let totalEF = 0, totalBlindaje = 0, totalOtros = 0;
+
+            for (const [zona, datos] of Object.entries(plan.supervisores)) {
+                const segmentos = datos.resumen_segmentos || {};
+                totalEF += segmentos['Equipo Frío'] || 0;
+                totalBlindaje += segmentos['Blindar'] || 0;
+                totalOtros += (segmentos['Desarrollar'] || 0) + (segmentos['Optimizar'] || 0) + (segmentos['Mantener'] || 0);
+            }
+
+            let cronogramaHtml = '';
+            for (const [zona, datos] of Object.entries(plan.supervisores)) {
+                if (datos.cronograma && datos.cronograma.length > 0) {
+                    cronogramaHtml += `
+                        <div class="config-section" style="margin-top: 20px;">
+                            <h4 style="color: #667eea; margin-bottom: 15px;">📍 ZONA ${zona} - Cronograma Diario</h4>
+                            <div class="table-responsive">
+                                <table style="width: 100%; font-size: 0.9em;">
+                                    <thead>
+                                        <tr style="background: #f5f5f5;">
+                                            <th>Fecha</th>
+                                            <th>Día</th>
+                                            <th>🗺️ RUTA</th>
+                                            <th>Clientes</th>
+                                            <th>Segmentos</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${datos.cronograma.map(dia => {
+                                            const efCount = dia.visitas.filter(v => v.clasificacion === 'Equipo Frío').length;
+                                            const blindarCount = dia.visitas.filter(v => v.clasificacion === 'Blindar').length;
+                                            const desarrollarCount = dia.visitas.filter(v => v.clasificacion === 'Desarrollar').length;
+                                            const mantenerCount = dia.visitas.filter(v => v.clasificacion === 'Mantener').length;
+                                            const optimizarCount = dia.visitas.filter(v => v.clasificacion === 'Optimizar').length;
+                                            const diaSemana = dia.día_semana || dia.dia_semana || '?';
+                                            return `
+                                                <tr style="border-bottom: 1px solid #eee;">
+                                                    <td>${dia.fecha}</td>
+                                                    <td><strong>${diaSemana}</strong></td>
+                                                    <td style="background: #fff3cd; font-weight: bold; padding: 8px;">RUTA: ${dia.ruta}</td>
+                                                    <td><strong>${dia.total_visitas}</strong></td>
+                                                    <td style="font-size: 0.85em;">
+                                                        <strong>EF:</strong> ${efCount} |
+                                                        <strong>Blindar:</strong> ${blindarCount} |
+                                                        <strong>Desarro:</strong> ${desarrollarCount} |
+                                                        <strong>Manten:</strong> ${mantenerCount} |
+                                                        <strong>Optim:</strong> ${optimizarCount}
+                                                    </td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            const html = `
+                <div class="config-section">
+                    <h3>📊 Resumen de Visitas por Segmento</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Segmento</th>
+                                <th>Cantidad</th>
+                                <th>Porcentaje</th>
+                                <th>Prioridad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Equipo Frío</strong></td>
+                                <td>${totalEF}</td>
+                                <td>${totalEF > 0 ? ((totalEF/(totalEF+totalBlindaje+totalOtros))*100).toFixed(1) : '0.0'}%</td>
+                                <td><span class="status-badge" style="background: #ff6b6b; color: white;">1 - Máxima</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Blindar</strong></td>
+                                <td>${totalBlindaje}</td>
+                                <td>${totalBlindaje > 0 ? ((totalBlindaje/(totalEF+totalBlindaje+totalOtros))*100).toFixed(1) : '0.0'}%</td>
+                                <td><span class="status-badge" style="background: #ffa94d; color: white;">2 - Alta</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Otros</strong></td>
+                                <td>${totalOtros}</td>
+                                <td>${totalOtros > 0 ? ((totalOtros/(totalEF+totalBlindaje+totalOtros))*100).toFixed(1) : '0.0'}%</td>
+                                <td><span class="status-badge" style="background: #74c0fc; color: white;">3-5 - Media/Baja</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="config-section">
+                    <h3>👥 Detalle por Supervisor</h3>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Zona</th>
+                                    <th>Total</th>
+                                    <th>Válidos</th>
+                                    <th>Excluidos</th>
+                                    <th>Planificados</th>
+                                    <th>%</th>
+                                    <th>Rutas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${Object.entries(plan.supervisores).map(([zona, datos]) => `
+                                    <tr>
+                                        <td><strong>Zona ${zona}</strong></td>
+                                        <td>${datos.total_clientes}</td>
+                                        <td>${datos.clientes_validos || 0}</td>
+                                        <td>${datos.clientes_excluidos || 0}</td>
+                                        <td><strong>${datos.clientes_planificados}</strong></td>
+                                        <td>${((datos.clientes_planificados/datos.total_clientes)*100).toFixed(1)}%</td>
+                                        <td>${datos.total_rutas || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                ${cronogramaHtml}
+            `;
+            document.getElementById('cronogramaContent').innerHTML = html;
+        }
+
+        // Actualizar información de exportación
+        function updateExportInfo(plan) {
+            const info = `
+                <table>
+                    <tr>
+                        <td><strong>Mes Planificado:</strong></td>
+                        <td>${plan.mes}/2026</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Fecha de Generación:</strong></td>
+                        <td>${new Date(plan.fecha_generacion).toLocaleDateString('es-ES')}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Días Hábiles:</strong></td>
+                        <td>${plan.dias_habiles}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total Supervisores:</strong></td>
+                        <td>${Object.keys(plan.supervisores).length}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Visitas Planificadas:</strong></td>
+                        <td>${Object.values(plan.supervisores).reduce((a, z) => a + z.clientes_planificados, 0)}</td>
+                    </tr>
+                </table>
+            `;
+            document.getElementById('exportInfo').innerHTML = info;
+        }
+
+        // Sistema de notificaciones
+        function mostrarNotificacion(tipo, mensaje, duracion = 3000) {
+            const container = document.getElementById('notificationContainer') || crearContenedorNotificaciones();
+
+            const notification = document.createElement('div');
+            notification.className = `notification ${tipo}`;
+
+            const iconos = {
+                success: '✅',
+                error: '❌',
+                info: 'ℹ️'
+            };
+
+            notification.innerHTML = `
+                <span class="notification-icon">${iconos[tipo]}</span>
+                <span class="notification-text">${mensaje}</span>
+                <span class="notification-close" onclick="this.parentElement.remove();">✕</span>
+            `;
+
+            container.appendChild(notification);
+
+            if (duracion > 0) {
+                setTimeout(() => {
+                    notification.classList.add('hide');
+                    setTimeout(() => notification.remove(), 300);
+                }, duracion);
+            }
+        }
+
+        function crearContenedorNotificaciones() {
+            const container = document.createElement('div');
+            container.id = 'notificationContainer';
+            container.className = 'notification-container';
+            document.body.appendChild(container);
+            return container;
+        }
+
+        // Mostrar progreso de descarga
+        function mostrarProgreso(porcentaje) {
+            const progressDiv = document.getElementById('downloadProgress');
+            const progressFill = document.getElementById('progressFill');
+            const progressPercent = document.getElementById('progressPercent');
+
+            progressDiv.classList.add('active');
+            progressFill.style.width = porcentaje + '%';
+            progressPercent.textContent = Math.round(porcentaje);
+        }
+
+        function ocultarProgreso() {
+            const progressDiv = document.getElementById('downloadProgress');
+            progressDiv.classList.remove('active');
+            document.getElementById('progressFill').style.width = '0%';
+        }
+
+        // Exportar a Excel
+        async function exportarExcel() {
+            if (!globalData.plan) {
+                mostrarNotificacion('error', 'Genera un plan primero');
+                return;
+            }
+
+            const spinner = document.getElementById('downloadSpinner');
+            const btnExcel = document.getElementById('btnExcel');
+
+            try {
+                spinner.style.display = 'inline-block';
+                btnExcel.disabled = true;
+                mostrarProgreso(10);
+
+                const response = await fetch(`${API_URL}/exportar-excel`, { method: 'POST' });
+                mostrarProgreso(50);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Error al descargar Excel');
+                }
+
+                const blob = await response.blob();
+                mostrarProgreso(80);
+
+                if (blob.size === 0) {
+                    throw new Error('El archivo Excel está vacío');
+                }
+
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'plan_visitas.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                mostrarProgreso(100);
+                setTimeout(() => {
+                    ocultarProgreso();
+                    spinner.style.display = 'none';
+                    btnExcel.disabled = false;
+                    mostrarNotificacion('success', 'Excel descargado exitosamente');
+                }, 500);
+
+            } catch (error) {
+                spinner.style.display = 'none';
+                btnExcel.disabled = false;
+                ocultarProgreso();
+                mostrarNotificacion('error', 'Error: ' + error.message);
+                console.error('Error:', error);
+            }
+        }
+
+        // Exportar a CSV
+        async function exportarCSV() {
+            if (!globalData.plan) {
+                mostrarNotificacion('error', 'Genera un plan primero');
+                return;
+            }
+
+            const spinner = document.getElementById('downloadSpinner');
+            const btnCSV = document.getElementById('btnCSV');
+
+            try {
+                spinner.style.display = 'inline-block';
+                btnCSV.disabled = true;
+                mostrarProgreso(10);
+
+                const response = await fetch(`${API_URL}/exportar-csv`, { method: 'POST' });
+                mostrarProgreso(50);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Error al descargar CSV');
+                }
+
+                const blob = await response.blob();
+                mostrarProgreso(80);
+
+                if (blob.size === 0) {
+                    throw new Error('El archivo CSV está vacío');
+                }
+
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'plan_visitas.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                mostrarProgreso(100);
+                setTimeout(() => {
+                    ocultarProgreso();
+                    spinner.style.display = 'none';
+                    btnCSV.disabled = false;
+                    mostrarNotificacion('success', 'CSV descargado exitosamente');
+                }, 500);
+
+            } catch (error) {
+                spinner.style.display = 'none';
+                btnCSV.disabled = false;
+                ocultarProgreso();
+                mostrarNotificacion('error', 'Error: ' + error.message);
+                console.error('Error:', error);
+            }
+        }
+
+        // Resetear plan
+        function resetearPlan() {
+            globalData.plan = null;
+            document.getElementById('mensajePlan').innerHTML = '';
+            document.getElementById('cronogramaContent').innerHTML =
+                '<p style="text-align: center; color: #999; padding: 40px;">Genera un plan primero</p>';
+            document.getElementById('exportInfo').innerHTML =
+                '<p style="color: #999;">No hay plan generado para exportar</p>';
+        }
+
+        // Cerrar modal
+        function closeModal() {
+            document.getElementById('detailsModal').classList.remove('active');
+        }
+
+        // Actualizar lista de clientes IPP encuestados en el mes
+        async function actualizarIPP() {
+            const statusDiv = document.getElementById('ippStatus');
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner" style="width:20px;height:20px;"></div><p style="margin:0;">Actualizando...</p></div>';
+
+            try {
+                const response = await fetch(`${API_URL}/actualizar-ipp`, {
+                    method: 'POST'
+                });
+
+                const resultado = await response.json();
+
+                if (resultado.success) {
+                    // Actualizar el contador en el dashboard
+                    document.getElementById('ippMesActual').textContent = resultado.total_encuestados.toLocaleString();
+
+                    statusDiv.innerHTML = `
+                        <div class="message success">
+                            <strong>✓ ${resultado.mensaje}</strong><br>
+                            Total encuestados en el mes: ${resultado.total_encuestados} clientes
+                        </div>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `<div class="message error">Error: ${resultado.error}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Descargar archivos maestros
+        function descargarArchivo(nombreArchivo, etiqueta) {
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner';
+            spinner.style.display = 'inline-block';
+            spinner.style.marginLeft = '10px';
+
+            const event = window.event;
+            const boton = event.target;
+            const textoOriginal = boton.textContent;
+
+            boton.disabled = true;
+            boton.textContent = 'Descargando...';
+
+            try {
+                const link = document.createElement('a');
+                link.href = nombreArchivo;
+                link.download = nombreArchivo;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                mostrarNotificacion('success', `${etiqueta} descargado exitosamente`);
+
+                setTimeout(() => {
+                    boton.disabled = false;
+                    boton.textContent = textoOriginal;
+                }, 1000);
+            } catch (error) {
+                mostrarNotificacion('error', `Error al descargar ${etiqueta}: ${error.message}`);
+                boton.disabled = false;
+                boton.textContent = textoOriginal;
+            }
+        }
+
+        // Descargar plantillas desde carpeta plantillas/
+        function descargarPlantilla(nombrePlantilla) {
+            const boton = event.target;
+            const textoOriginal = boton.textContent;
+            boton.disabled = true;
+            boton.textContent = 'Descargando...';
+
+            try {
+                const link = document.createElement('a');
+                link.href = `/plantillas/${nombrePlantilla}.xlsx`;
+                link.download = `${nombrePlantilla}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                mostrarNotificacion('success', `Plantilla ${nombrePlantilla} descargada`);
+
+                setTimeout(() => {
+                    boton.disabled = false;
+                    boton.textContent = textoOriginal;
+                }, 1000);
+            } catch (error) {
+                mostrarNotificacion('error', `Error: ${error.message}`);
+                boton.disabled = false;
+                boton.textContent = textoOriginal;
+            }
+        }
+
+        // Setup drag and drop
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        if (uploadArea && fileInput) {
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.style.background = '#e8f0f8';
+                uploadArea.style.borderColor = '#28a745';
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.style.background = '#f9f9f9';
+                uploadArea.style.borderColor = '#667eea';
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.style.background = '#f9f9f9';
+                uploadArea.style.borderColor = '#667eea';
+                fileInput.files = e.dataTransfer.files;
+                mostrarArchivosSeleccionados();
+            });
+
+            fileInput.addEventListener('change', mostrarArchivosSeleccionados);
+        }
+
+        function mostrarArchivosSeleccionados() {
+            const fileInput = document.getElementById('fileInput');
+            const statusDiv = document.getElementById('uploadStatus');
+
+            if (fileInput.files.length === 0) {
+                statusDiv.innerHTML = '';
+                return;
+            }
+
+            let html = '<div style="background: #e8f5e9; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745;"><strong>Archivos seleccionados:</strong><ul style="margin: 10px 0;">';
+            for (let file of fileInput.files) {
+                html += `<li>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</li>`;
+            }
+            html += '</ul></div>';
+            statusDiv.innerHTML = html;
+        }
+
+        async function enviarArchivos() {
+            const fileInput = document.getElementById('fileInput');
+            const statusDiv = document.getElementById('uploadStatus');
+
+            if (fileInput.files.length === 0) {
+                mostrarNotificacion('error', 'Selecciona archivos primero');
+                return;
+            }
+
+            const formData = new FormData();
+            for (let file of fileInput.files) {
+                formData.append('files', file);
+            }
+
+            try {
+                statusDiv.innerHTML = '<div style="text-align: center;"><div class="spinner" style="display: inline-block; width: 24px; height: 24px;"></div><p>Subiendo...</p></div>';
+
+                const response = await fetch(`${API_URL}/subir-datos`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const resultado = await response.json();
+
+                if (resultado.success) {
+                    statusDiv.innerHTML = `<div style="background: #e8f5e9; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745;">
+                        <strong style="color: #28a745;">Archivos subidos exitosamente</strong>
+                        <p style="margin: 10px 0; font-size: 0.9em;">${resultado.mensaje}</p>
+                    </div>`;
+                    mostrarNotificacion('success', 'Datos actualizados correctamente');
+                    limpiarUpload();
+                    setTimeout(() => loadData(), 1000);
+                } else {
+                    statusDiv.innerHTML = `<div style="background: #ffebee; padding: 15px; border-radius: 6px; border-left: 4px solid #dc3545;">
+                        <strong style="color: #dc3545;">Error al subir</strong>
+                        <p style="margin: 10px 0; font-size: 0.9em;">${resultado.error}</p>
+                    </div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        }
+
+        function limpiarUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const statusDiv = document.getElementById('uploadStatus');
+            fileInput.value = '';
+            statusDiv.innerHTML = '';
+        }
+
+        // Cargar datos al iniciar
+        window.onload = function() {
+            loadData();
+        };
+    </script>
+</body>
+</html>

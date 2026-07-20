@@ -1,0 +1,119 @@
+{
+  "sistema": {
+    "nombre": "Planificador de Visitas - IPP",
+    "version": "1.0",
+    "descripcion": "Sistema inteligente de planificación de rutas de visitas"
+  },
+  "parametros_defecto": {
+    "mes": 7,
+    "ano": 2026,
+    "inicio_visitas": 5,
+    "visitas_por_dia": 20,
+    "dias_exclusion": [28, 29, 30, 31],
+    "dias_sin_visita": [5, 6]
+  },
+  "prioridades": {
+    "1": {
+      "segmento": "Equipo Frío",
+      "descripcion": "Clientes con equipo de frío - Máxima prioridad",
+      "regla_minima": "1 visita en el mes",
+      "aplica_3_meses": false,
+      "permite_repetir": true
+    },
+    "2": {
+      "segmento": "Blindaje",
+      "descripcion": "Clientes de blindaje/BTL - Alta prioridad",
+      "regla_minima": "Después de EF",
+      "aplica_3_meses": true,
+      "permite_repetir": false
+    },
+    "3": {
+      "segmento": "Desarrollar",
+      "descripcion": "Clientes en desarrollo - Media prioridad",
+      "regla_minima": "Según disponibilidad",
+      "aplica_3_meses": true,
+      "permite_repetir": false
+    },
+    "4": {
+      "segmento": "Optimizar",
+      "descripcion": "Clientes para optimizar - Baja prioridad",
+      "regla_minima": "Según disponibilidad",
+      "aplica_3_meses": true,
+      "permite_repetir": false
+    },
+    "5": {
+      "segmento": "Mantener",
+      "descripcion": "Clientes para mantener - Mínima prioridad",
+      "regla_minima": "Según disponibilidad",
+      "aplica_3_meses": true,
+      "permite_repetir": false
+    }
+  },
+  "reglas_especiales": {
+    "ultima_semana": {
+      "descripcion": "En la última semana del mes (LU-JU)",
+      "dias_activos": [0, 1, 2, 3],
+      "nota": "Se permite repetir frecuencia en última semana"
+    },
+    "tres_meses_moviles": {
+      "descripcion": "Encuestas IPP de los últimos 3 meses",
+      "aplica_a": ["Blindaje", "Desarrollar", "Optimizar", "Mantener"],
+      "no_aplica_a": ["Equipo Frío"]
+    }
+  },
+  "datos_entrada": {
+    "cedis": {
+      "archivo": "Clientes cedis (2).xlsx",
+      "registros_esperados": 58105,
+      "columnas_clave": [
+        "Código Zona",
+        "Cliente: Código de Cliente",
+        "Cliente: Segmento",
+        "Ruta",
+        "Días de visita"
+      ]
+    },
+    "ipp": {
+      "archivo": "Clientes IPP_.xlsx",
+      "registros_esperados": 7896,
+      "columnas_clave": [
+        "Cod Cliente",
+        "Nomb_cliente",
+        "Zona",
+        "Segmento"
+      ]
+    },
+    "ef": {
+      "archivo": "Data EF - Julio 2026.xlsx",
+      "registros_esperados": 5068,
+      "columnas_clave": [
+        "Cliente_id",
+        "nombre cliente",
+        "Zona"
+      ]
+    }
+  },
+  "supervisores": [
+    1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+    15, 16, 17, 20, 21, 25, 26, 27, 28, 30,
+    31, 33, 34, 36, 37
+  ],
+  "estadisticas": {
+    "clientes_totales": 58105,
+    "clientes_ipp": 7896,
+    "clientes_ef": 5068,
+    "total_supervisores": 27,
+    "promedio_clientes_supervisor": 2152,
+    "dias_habiles_mes": 20,
+    "visitas_diarias": 20,
+    "visitas_mensuales_supervisor": 400
+  },
+  "archivos_salida": {
+    "plan_json": "plan_visitas_julio.json",
+    "plan_excel": "plan_visitas_julio.xlsx",
+    "plan_csv": "plan_visitas_julio.csv",
+    "dashboard_json": "datos_planificador.json"
+  },
+  "puerto_servidor": 8000,
+  "interfaz_web": "index.html"
+}

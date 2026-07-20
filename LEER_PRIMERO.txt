@@ -1,0 +1,242 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║        📅 PLANIFICADOR DE VISITAS - IPP (v1.0)                ║
+║                                                                ║
+║        Sistema Inteligente de Planificación de Rutas           ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+¡BIENVENIDO! Este es el sistema de planificación automática de
+visitas que has solicitado. Lee esto primero.
+
+┌────────────────────────────────────────────────────────────────┐
+│ 🚀 EMPEZAR AHORA (en 2 minutos)                                │
+└────────────────────────────────────────────────────────────────┘
+
+OPCION 1 - Windows (MÁS FÁCIL)
+────────────────────────────────
+  1. Haz doble clic en: install_y_ejecutar.bat
+  2. Espera a que se instale
+  3. ¡La web se abre automáticamente!
+
+OPCION 2 - Terminal
+────────────────────────────────
+  py app.py
+  Luego abre: http://localhost:5000
+
+OPCION 3 - Validar Primero
+────────────────────────────────
+  py validar_sistema.py
+  (Verifica que todo esté bien antes de ejecutar)
+
+┌────────────────────────────────────────────────────────────────┐
+│ 📚 ARCHIVOS IMPORTANTES                                        │
+└────────────────────────────────────────────────────────────────┘
+
+DOCUMENTACIÓN
+  ✓ README.md                  → Guía completa (léelo!)
+  ✓ QUICK_START.md             → Inicio rápido
+  ✓ PERSONALIZAR.md            → Cómo personalizar
+  ✓ RESUMEN_SISTEMA.html       → Resumen visual
+
+APLICACIÓN
+  ✓ index.html                 → Interfaz web
+  ✓ app.py                     → Servidor Flask
+  ✓ generar_plan.py            → Motor de planificación
+
+UTILIDADES
+  ✓ install_y_ejecutar.bat     → Instala y ejecuta todo
+  ✓ validar_sistema.py         → Valida integridad
+  ✓ START.bat                  → Menú interactivo
+  ✓ config.json                → Configuración
+
+DATOS (NO TOQUES)
+  ✓ Clientes cedis (2).xlsx    → Base CEDIS (58K clientes)
+  ✓ Clientes IPP_.xlsx         → Clientes IPP (7.8K)
+  ✓ Data EF - Julio 2026.xlsx  → Equipo Frío (5K)
+
+┌────────────────────────────────────────────────────────────────┐
+│ ⚡ QUÉ HACE EL SISTEMA                                         │
+└────────────────────────────────────────────────────────────────┘
+
+✓ Carga 58,105 clientes automáticamente
+✓ Clasifica en 5 prioridades (EF > Blindaje > Otros)
+✓ Genera plan de 320 clientes por supervisor en 16 días
+✓ Valida reglas complejas (3 meses móviles, etc.)
+✓ Exporta a Excel con cronograma detallado
+✓ Interfaz web moderna e intuitiva
+
+┌────────────────────────────────────────────────────────────────┐
+│ 🎯 PRIORIDADES AUTOMÁTICAS                                     │
+└────────────────────────────────────────────────────────────────┘
+
+[1] EQUIPO FRÍO (EF)
+    - Máxima prioridad
+    - Mínimo 1 visita en el mes
+    - No aplica restricción 3 meses
+
+[2] BLINDAJE
+    - Alta prioridad
+    - Se planifica después de EF
+    - Aplica restricción 3 meses
+
+[3] DESARROLLAR
+    - Media prioridad
+    - Según disponibilidad
+    - Aplica restricción 3 meses
+
+[4] OPTIMIZAR
+    - Baja prioridad
+    - Según disponibilidad
+    - Aplica restricción 3 meses
+
+[5] MANTENER
+    - Mínima prioridad
+    - Relleno según disponibilidad
+    - Aplica restricción 3 meses
+
+┌────────────────────────────────────────────────────────────────┐
+│ ⚙️  PARÁMETROS CONFIGURABLES                                   │
+└────────────────────────────────────────────────────────────────┘
+
+En la web puedes cambiar:
+
+  • Mes                   (Julio, Agosto, etc.)
+  • Inicio de Visitas     (1-5 del mes)
+  • Visitas por Día       (predeterminado: 20)
+  • Excluir Días          (ej: 28,29,30,31)
+  • Días sin Visita       (ej: 5,6 = Sáb, Dom)
+  • Filtro de Supervisor  (zona específica o todas)
+
+┌────────────────────────────────────────────────────────────────┐
+│ 📊 ESTADÍSTICAS RÁPIDAS                                        │
+└────────────────────────────────────────────────────────────────┘
+
+Clientes Totales:           58,105
+Clientes IPP:                7,896
+Clientes Equipo Frío:        5,068
+Supervisores (Zonas):            27
+Promedio Clientes/Supervisor: 2,152
+
+Plan Mensual (Julio):
+  • Días Hábiles:                   16
+  • Visitas por Día:                20
+  • Total Visitas por Supervisor:  320
+
+┌────────────────────────────────────────────────────────────────┐
+│ 🔍 FLUJO DE USO TÍPICO                                         │
+└────────────────────────────────────────────────────────────────┘
+
+1. EJECUTAR
+   → py app.py o install_y_ejecutar.bat
+
+2. ABRIR WEB
+   → Se abre automáticamente en http://localhost:5000
+
+3. VER DASHBOARD
+   → Verás cargados: 58K clientes, 27 supervisores
+
+4. CONFIGURAR PARÁMETROS
+   → Cambia mes, días exclusión, etc. si es necesario
+
+5. GENERAR PLAN
+   → Click en "Generar Plan" - espera 5-10 segundos
+
+6. VER CRONOGRAMA
+   → Se muestra plan por zona y segmento
+
+7. EXPORTAR
+   → Descarga como Excel o CSV
+
+8. COMPARTIR CON SUPERVISORES
+   → Cada supervisor tiene su hoja con su cronograma
+
+┌────────────────────────────────────────────────────────────────┐
+│ ❓ PREGUNTAS FRECUENTES                                         │
+└────────────────────────────────────────────────────────────────┘
+
+P: "¿Se abre automáticamente?"
+R: Sí, si usas install_y_ejecutar.bat o app.py
+
+P: "¿Puedo cambiar los criterios?"
+R: Sí, lee PERSONALIZAR.md para instrucciones
+
+P: "¿Qué pasa si hay error?"
+R: Ejecuta: py validar_sistema.py
+
+P: "¿Puedo generar para múltiples meses?"
+R: Sí, genere cada mes en la web o modifica generar_plan.py
+
+P: "¿Se guarda el plan?"
+R: Sí, se exporta automáticamente a Excel y JSON
+
+P: "¿Puedo integrar con mi BD?"
+R: Sí, lee PERSONALIZAR.md sección "Integración BD"
+
+┌────────────────────────────────────────────────────────────────┐
+│ 🛠️  TROUBLESHOOTING                                            │
+└────────────────────────────────────────────────────────────────┘
+
+PROBLEMA: "No tengo Python instalado"
+SOLUCIÓN: Descarga desde https://www.python.org
+
+PROBLEMA: "Error: Module not found"
+SOLUCIÓN: pip install pandas openpyxl flask
+
+PROBLEMA: "Puerto 5000 en uso"
+SOLUCIÓN: Edita app.py línea 81, cambia port=5001
+
+PROBLEMA: "Excel no se descarga"
+SOLUCIÓN: Verifica que hay un plan generado primero
+
+PROBLEMA: "Datos no se cargan"
+SOLUCIÓN: Verifica que los Excel estén en esta carpeta
+
+MÁS PROBLEMAS?
+  py validar_sistema.py
+  Esto ejecuta un diagnóstico completo
+
+┌────────────────────────────────────────────────────────────────┐
+│ 📖 LECTURA RECOMENDADA                                         │
+└────────────────────────────────────────────────────────────────┘
+
+Paso 1 (AHORA):
+  → QUICK_START.md (5 min)
+
+Paso 2 (DESPUÉS DE EJECUTAR):
+  → README.md (20 min) - Documentación completa
+
+Paso 3 (SI QUIERES PERSONALIZAR):
+  → PERSONALIZAR.md - Cómo cambiar criterios
+
+Paso 4 (VISUAL):
+  → RESUMEN_SISTEMA.html - Abre en navegador
+
+┌────────────────────────────────────────────────────────────────┐
+│ ✅ CHECKLIST ANTES DE USAR EN PRODUCCIÓN                      │
+└────────────────────────────────────────────────────────────────┘
+
+□ Ejecuté validar_sistema.py sin errores
+□ Generé un plan de prueba
+□ Verifiqué el Excel generado
+□ Cambié parámetros según necesidad
+□ Probé exportación (Excel y CSV)
+□ Validé que las prioridades funcionan
+□ Compartí con supervisores para feedback
+□ Ajusté según feedback
+□ ¡Listo para producción!
+
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║  🎉 ¡ESTÁS LISTO PARA EMPEZAR!                               ║
+║                                                                ║
+║  Siguiente paso: install_y_ejecutar.bat  (Windows)            ║
+║                 O: py app.py              (Cualquier SO)      ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+Hecho con ❤️ para optimizar tus visitas
+
+Version: 1.0
+Fecha: Julio 2026
+Soporte: Contacta al equipo técnico

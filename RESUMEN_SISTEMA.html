@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumen del Sistema - Planificador de Visitas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        section {
+            margin-bottom: 40px;
+        }
+
+        section h2 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .card p {
+            color: #666;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin: 20px 0;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+            color: #333;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-box .value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-box .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .prioridades {
+            margin: 20px 0;
+        }
+
+        .prioridad-item {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        .prioridad-numero {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 35px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .prioridad-contenido {
+            display: inline-block;
+            flex: 1;
+        }
+
+        .prioridad-titulo {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .prioridad-desc {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .botones {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 1em;
+        }
+
+        button:hover, a.btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+
+        a.btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border-radius: 4px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 1em;
+        }
+
+        .archivo-lista {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .archivo {
+            padding: 10px 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .archivo:last-child {
+            border-bottom: none;
+        }
+
+        .archivo-nombre {
+            font-weight: 600;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+        }
+
+        .archivo-desc {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .paso {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #667eea;
+        }
+
+        .paso-numero {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .paso-contenido {
+            display: inline-block;
+            flex: 1;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #ddd;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .botones {
+                flex-direction: column;
+            }
+
+            button, a.btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📅 Planificador de Visitas - IPP</h1>
+            <p>Sistema Inteligente de Planificación de Rutas</p>
+        </header>
+
+        <div class="content">
+            <!-- SECCIÓN: QUÉ SE CONSTRUYÓ -->
+            <section>
+                <h2>🎯 ¿Qué se Construyó?</h2>
+                <p style="margin-bottom: 20px; color: #333; font-size: 1.05em;">
+                    Un sistema completo de planificación automática de visitas que considera múltiples criterios operativos
+                    para distribuir de forma equitativa las 58,105+ clientes entre 27 supervisores.
+                </p>
+
+                <ul class="feature-list">
+                    <li>✓ Motor de planificación inteligente con 5 niveles de prioridad</li>
+                    <li>✓ Interfaz web moderna e intuitiva</li>
+                    <li>✓ Procesamiento automático de datos desde Excel</li>
+                    <li>✓ Generación de cronogramas detallados</li>
+                    <li>✓ Exportación en múltiples formatos (Excel, JSON, CSV)</li>
+                    <li>✓ Dashboard con estadísticas en tiempo real</li>
+                    <li>✓ Validación de reglas operativas complejas</li>
+                </ul>
+
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="value">58,105</div>
+                        <div class="label">Clientes CEDIS</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="value">7,896</div>
+                        <div class="label">Clientes IPP</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="value">5,068</div>
+                        <div class="label">Equipo Frío</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="value">27</div>
+                        <div class="label">Supervisores</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: CRITERIOS DE PRIORIZACIÓN -->
+            <section>
+                <h2>⚡ Criterios de Priorización</h2>
+                <p style="margin-bottom: 20px; color: #333;">
+                    El sistema clasifica automáticamente cada cliente según reglas de negocio complejas:
+                </p>
+
+                <div class="prioridades">
+                    <div class="prioridad-item">
+                        <span class="prioridad-numero">1</span>
+                        <div class="prioridad-contenido">
+                            <div class="prioridad-titulo">Equipo Frío (EF)</div>
+                            <div class="prioridad-desc">
+                                Clientes con equipo de frío - Máxima prioridad. Mínimo 1 visita en el mes.
+                                No aplica restricción de 3 meses.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="prioridad-item">
+                        <span class="prioridad-numero">2</span>
+                        <div class="prioridad-contenido">
+                            <div class="prioridad-titulo">Blindaje/BTL</div>
+                            <div class="prioridad-desc">
+                                Clientes de blindaje - Alta prioridad. Se planifican después de EF.
+                                Aplica regla de 3 meses móviles.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="prioridad-item">
+                        <span class="prioridad-numero">3</span>
+                        <div class="prioridad-contenido">
+                            <div class="prioridad-titulo">Desarrollar</div>
+                            <div class="prioridad-desc">
+                                Clientes en desarrollo - Media prioridad. Según disponibilidad.
+                                Aplica regla de 3 meses móviles.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="prioridad-item">
+                        <span class="prioridad-numero">4</span>
+                        <div class="prioridad-contenido">
+                            <div class="prioridad-titulo">Optimizar</div>
+                            <div class="prioridad-desc">
+                                Clientes para optimizar - Baja prioridad. Según disponibilidad.
+                                Aplica regla de 3 meses móviles.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="prioridad-item">
+                        <span class="prioridad-numero">5</span>
+                        <div class="prioridad-contenido">
+                            <div class="prioridad-titulo">Mantener</div>
+                            <div class="prioridad-desc">
+                                Clientes para mantener - Mínima prioridad. Relleno según disponibilidad.
+                                Aplica regla de 3 meses móviles.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: REGLAS OPERATIVAS -->
+            <section>
+                <h2>📋 Reglas Operativas Implementadas</h2>
+
+                <div class="grid">
+                    <div class="card">
+                        <h3>20 Visitas por Día</h3>
+                        <p>Cada supervisor tiene asignadas exactamente 20 visitas por día laboral,
+                           garantizando carga de trabajo equitativa.</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Regla de 3 Meses Móviles</h3>
+                        <p>Los clientes IPP no deben tener encuesta en los últimos 3 meses.
+                           No aplica para clientes con equipo frío.</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>No Repetir Frecuencia</h3>
+                        <p>No se repite la frecuencia de visita excepto en la última semana
+                           (Lunes-Jueves) cuando es necesario.</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Días de Exclusión</h3>
+                        <p>Se pueden excluir fechas específicas (fin de mes, vacaciones)
+                           para evitar asignaciones innecesarias.</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Inicio Flexible</h3>
+                        <p>Las visitas comienzan entre el 1-5 del mes, típicamente el 5
+                           para dejar margen administrativo.</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Última Semana</h3>
+                        <p>En la última semana (LU-JU), se permite repetir frecuencia
+                           para completar la cobertura de EF.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: ARCHIVOS DEL SISTEMA -->
+            <section>
+                <h2>📂 Estructura de Archivos</h2>
+
+                <div class="archivo-lista">
+                    <div class="archivo">
+                        <div class="archivo-nombre">index.html</div>
+                        <div class="archivo-desc">Interfaz web moderna con dashboard, configuración y visualización de cronogramas</div>
+                    </div>
+
+                    <div class="archivo">
+                        <div class="archivo-nombre">server.py</div>
+                        <div class="archivo-desc">Servidor local que sirve la aplicación web en http://localhost:8000</div>
+                    </div>
+
+                    <div class="archivo">
+                        <div class="archivo-nombre">generar_plan.py</div>
+                        <div class="archivo-desc">Motor principal de planificación con toda la lógica de asignación</div>
+                    </div>
+
+                    <div class="archivo">
+                        <div class="archivo-nombre">planificador.py</div>
+                        <div class="archivo-desc">Procesamiento y análisis inicial de datos desde Excel</div>
+                    </div>
+
+                    <div class="archivo">
+                        <div class="archivo-nombre">analyze_data.py</div>
+                        <div class="archivo-desc">Script de análisis exploratorio para entender la estructura de datos</div>
+                    </div>
+
+                    <div class="archivo">
+                        <div class="archivo-nombre">config.json</div>
+                        <div class="archivo-desc">Configuración centralizada del sistema con parámetros y reglas</div>
+                    </div>
+
+                    <div class="archivo">
+                        <div class="archivo-nombre">START.bat</div>
+                        <div class="archivo-desc">Menú interactivo para iniciar el sistema en Windows</div>
+                    </div>
+
+                    <div class="archivo">
+                        <div class="archivo-nombre">README.md</div>
+                        <div class="archivo-desc">Documentación completa del sistema con ejemplos y troubleshooting</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: CÓMO USAR -->
+            <section>
+                <h2>🚀 Cómo Usar el Sistema</h2>
+
+                <h3 style="color: #667eea; margin-top: 20px; margin-bottom: 15px;">Opción 1: Interfaz Web (Recomendado)</h3>
+
+                <div class="paso">
+                    <span class="paso-numero">1</span>
+                    <div class="paso-contenido">
+                        <strong>Abrir Terminal/CMD</strong> en la carpeta del proyecto
+                    </div>
+                </div>
+
+                <div class="paso">
+                    <span class="paso-numero">2</span>
+                    <div class="paso-contenido">
+                        <strong>Ejecutar servidor:</strong>
+                        <div class="code-block">py server.py</div>
+                    </div>
+                </div>
+
+                <div class="paso">
+                    <span class="paso-numero">3</span>
+                    <div class="paso-contenido">
+                        <strong>El navegador abre automáticamente</strong> en http://localhost:8000
+                    </div>
+                </div>
+
+                <div class="paso">
+                    <span class="paso-numero">4</span>
+                    <div class="paso-contenido">
+                        <strong>Configurar parámetros</strong> en la pestaña "Configurar Plan"
+                    </div>
+                </div>
+
+                <div class="paso">
+                    <span class="paso-numero">5</span>
+                    <div class="paso-contenido">
+                        <strong>Generar Plan</strong> y ver cronograma interactivo
+                    </div>
+                </div>
+
+                <div class="paso">
+                    <span class="paso-numero">6</span>
+                    <div class="paso-contenido">
+                        <strong>Exportar</strong> como Excel o CSV desde la pestaña "Exportar"
+                    </div>
+                </div>
+
+                <h3 style="color: #667eea; margin-top: 30px; margin-bottom: 15px;">Opción 2: Línea de Comandos</h3>
+
+                <div class="paso">
+                    <span class="paso-numero">1</span>
+                    <div class="paso-contenido">
+                        <strong>Generar plan de Julio:</strong>
+                        <div class="code-block">py generar_plan.py</div>
+                    </div>
+                </div>
+
+                <div class="paso">
+                    <span class="paso-numero">2</span>
+                    <div class="paso-contenido">
+                        Genera automáticamente:
+                        <ul style="margin-top: 10px;">
+                            <li>plan_visitas_julio.json</li>
+                            <li>plan_visitas_julio.xlsx</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3 style="color: #667eea; margin-top: 30px; margin-bottom: 15px;">Opción 3: Menú Interactivo (Windows)</h3>
+
+                <div class="paso">
+                    <span class="paso-numero">1</span>
+                    <div class="paso-contenido">
+                        Hacer doble clic en <strong>START.bat</strong>
+                    </div>
+                </div>
+
+                <div class="paso">
+                    <span class="paso-numero">2</span>
+                    <div class="paso-contenido">
+                        Seleccionar la opción deseada del menú
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: PARÁMETROS CONFIGURABLES -->
+            <section>
+                <h2>⚙️ Parámetros Configurables</h2>
+
+                <div class="grid">
+                    <div class="card">
+                        <h3>Mes y Año</h3>
+                        <p>Selecciona el período a planificar. Julio 2026 es el predeterminado.</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Inicio de Visitas</h3>
+                        <p>Día del mes (1-5) para comenzar. Recomendado: 5 para margen administrativo.</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Visitas por Día</h3>
+                        <p>Cantidad de clientes por supervisor por día. Estándar: 20</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Días de Exclusión</h3>
+                        <p>Fechas sin visitas (ej: 28,29,30,31 para fin de mes)</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Días Sin Visita</h3>
+                        <p>Días de la semana sin programación (0=Lun, 6=Dom). Típico: 5,6 (Sáb,Dom)</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Filtro de Supervisor</h3>
+                        <p>Generar plan solo para una zona específica o todas</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: SALIDAS DEL SISTEMA -->
+            <section>
+                <h2>📊 Salidas del Sistema</h2>
+
+                <h3 style="color: #667eea; margin-top: 20px; margin-bottom: 15px;">Excel (.xlsx)</h3>
+                <p style="margin-bottom: 15px;">Contiene múltiples hojas:</p>
+                <ul class="feature-list">
+                    <li>Hoja "Resumen": Totales por supervisor y segmento</li>
+                    <li>Hojas por Zona: Cronograma diario detallado con cliente, ruta, segmento y clasificación</li>
+                </ul>
+
+                <h3 style="color: #667eea; margin-top: 20px; margin-bottom: 15px;">JSON</h3>
+                <p style="margin-bottom: 15px;">Estructura jerárquica con:</p>
+                <ul class="feature-list">
+                    <li>Metadatos del plan (mes, año, fecha generación)</li>
+                    <li>Cronograma por supervisor con visitas diarias</li>
+                    <li>Resumen de segmentos por zona</li>
+                </ul>
+
+                <h3 style="color: #667eea; margin-top: 20px; margin-bottom: 15px;">Dashboard JSON</h3>
+                <p style="margin-bottom: 15px;">Datos para visualización en la interfaz web:</p>
+                <ul class="feature-list">
+                    <li>Estadísticas globales</li>
+                    <li>Resumen por supervisor</li>
+                    <li>Cantidad de clientes EF</li>
+                </ul>
+            </section>
+
+            <!-- SECCIÓN: CASOS DE USO -->
+            <section>
+                <h2>💡 Casos de Uso</h2>
+
+                <div class="card" style="margin-bottom: 15px;">
+                    <h3>Caso 1: Planificación Mensual Estándar</h3>
+                    <p>Ejecutar el sistema con parámetros por defecto para generar plan mensual completo
+                       con todos los criterios activados.</p>
+                </div>
+
+                <div class="card" style="margin-bottom: 15px;">
+                    <h3>Caso 2: Plan por Zona Específica</h3>
+                    <p>Usar el filtro de supervisor para planificar solo para una zona en particular,
+                       útil para análisis o cambios de última hora.</p>
+                </div>
+
+                <div class="card" style="margin-bottom: 15px;">
+                    <h3>Caso 3: Ajuste de Calendario</h3>
+                    <p>Modificar días de exclusión o inicio de visitas para adaptarse a eventos especiales
+                       como festivos o períodos de cierre.</p>
+                </div>
+
+                <div class="card" style="margin-bottom: 15px;">
+                    <h3>Caso 4: Reporte Ejecutivo</h3>
+                    <p>Usar el dashboard para ver métricas generales y exportar resumen para presentaciones
+                       a stakeholders.</p>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: VENTAJAS DEL SISTEMA -->
+            <section>
+                <h2>✨ Ventajas del Sistema</h2>
+
+                <div class="success">
+                    <strong>⚡ Automatización Completa</strong><br>
+                    Elimina la planificación manual reduciendo errores y tiempo dedicado.
+                </div>
+
+                <div class="success">
+                    <strong>📊 Inteligencia Integrada</strong><br>
+                    Considera múltiples criterios simultáneamente (5 niveles de prioridad + reglas especiales).
+                </div>
+
+                <div class="success">
+                    <strong>🎯 Equidad en Distribución</strong><br>
+                    Garantiza carga de trabajo equitativa entre supervisores (20 visitas/día).
+                </div>
+
+                <div class="success">
+                    <strong>📈 Escalabilidad</strong><br>
+                    Maneja 58K+ clientes y 27 supervisores sin problemas de rendimiento.
+                </div>
+
+                <div class="success">
+                    <strong>🔄 Flexibilidad</strong><br>
+                    Parámetros ajustables para adaptarse a cambios organizacionales.
+                </div>
+
+                <div class="success">
+                    <strong>📱 Múltiples Interfaces</strong><br>
+                    Web moderna, línea de comandos, y menú interactivo para diferentes usuarios.
+                </div>
+            </section>
+
+            <!-- SECCIÓN: PRÓXIMOS PASOS -->
+            <section>
+                <h2>📝 Próximos Pasos</h2>
+
+                <div class="warning">
+                    <strong>⚠ Antes de Usar en Producción</strong><br>
+                    Verificar que los datos de entrada (Excels) estén completos y actualizados.
+                    Realizar un plan piloto para validar resultados antes de usar con supervisores.
+                </div>
+
+                <h3 style="color: #667eea; margin-top: 20px; margin-bottom: 15px;">Validaciones Recomendadas</h3>
+                <ul class="feature-list">
+                    <li>Verificar que todos los clientes EF estén correctamente identificados</li>
+                    <li>Validar que las fechas de encuestas IPP sean precisas</li>
+                    <li>Confirmar que los códigos de zona correspondan a supervisores activos</li>
+                    <li>Auditar un plan generado comparándolo con procesos anteriores</li>
+                </ul>
+
+                <h3 style="color: #667eea; margin-top: 20px; margin-bottom: 15px;">Mejoras Futuras Sugeridas</h3>
+                <ul class="feature-list">
+                    <li>Integración con base de datos en tiempo real</li>
+                    <li>Visualización de rutas en mapa</li>
+                    <li>Tracking de visitas completadas vs. planificadas</li>
+                    <li>Notificaciones automáticas a supervisores</li>
+                    <li>Análisis de efectividad de rutas</li>
+                </ul>
+            </section>
+
+            <!-- BOTONES DE ACCIÓN -->
+            <div class="botones">
+                <button onclick="window.location.href='index.html'">🚀 Abrir Aplicación Web</button>
+                <button onclick="mostrarComandos()">💻 Ver Comandos</button>
+                <button onclick="window.open('README.md')">📖 Leer Documentación</button>
+            </div>
+
+            <script>
+                function mostrarComandos() {
+                    alert(`COMANDOS DISPONIBLES:
+
+1. Iniciar servidor web:
+   py server.py
+
+2. Generar plan de Julio:
+   py generar_plan.py
+
+3. Analizar datos:
+   py analyze_data.py
+
+4. Menú interactivo (Windows):
+   START.bat
+
+PARÁMETROS CUSTOMIZABLES:
+- Editar generar_plan.py línea 318-325
+- Cambiar mes, año, inicio_visitas, etc.`);
+                }
+            </script>
+        </div>
+
+        <footer>
+            <p>Sistema de Planificador de Visitas v1.0 | Creado para optimizar la asignación de rutas | © 2026 IPP Analytics</p>
+        </footer>
+    </div>
+</body>
+</html>
