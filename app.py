@@ -30,7 +30,14 @@ except Exception as e:
 
 @app.route('/')
 def index():
-    return open('index.html', 'r', encoding='utf-8').read()
+    """Sin cache: durante desarrollo el HTML/JS cambia seguido y el navegador
+    no debe servir una versión vieja después de un cambio."""
+    response = app.response_class(
+        open('index.html', 'r', encoding='utf-8').read(),
+        mimetype='text/html'
+    )
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+    return response
 
 @app.route('/plantillas/<filename>')
 def descargar_plantilla(filename):
