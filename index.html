@@ -530,12 +530,6 @@
             </div>
 
             <div class="config-section">
-                <h3>📁 Datos</h3>
-                <p style="margin-bottom: 15px;">Recarga el dashboard con los datos actuales.</p>
-                <button onclick="loadData()">🔄 Recargar Dashboard</button>
-            </div>
-
-            <div class="config-section">
                 <h3>🔄 Sincronizar IPP desde Tableau</h3>
                 <p style="margin-bottom: 15px;">Descarga automáticamente los clientes IPP encuestados directamente desde el reporte de Tableau — ya no es necesario subir estos Excel a mano.</p>
 
@@ -826,11 +820,11 @@
                 </div>
                 <div class="stat-card">
                     <h3>Clientes IPP Mes Actual</h3>
-                    <div class="value" id="ippMesActual">417</div>
+                    <div class="value" id="ippMesActual">${data.ipp_mes_actual_total.toLocaleString()}</div>
                 </div>
                 <div class="stat-card">
                     <h3>Clientes IPP 3 Meses</h3>
-                    <div class="value">1408</div>
+                    <div class="value">${data.ipp_3meses_total.toLocaleString()}</div>
                 </div>
             `;
             document.getElementById('statsDashboard').innerHTML = statsHtml;

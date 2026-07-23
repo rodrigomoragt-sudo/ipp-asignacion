@@ -47,12 +47,39 @@ def descargar_plantilla(filename):
 
 @app.route('/api/data', methods=['GET'])
 def obtener_datos():
-    """Retorna datos resumidos para el dashboard"""
-    try:
-        with open('datos_planificador.json', 'r', encoding='utf-8') as f:
-            return jsonify(json.load(f))
-    except:
+    """
+    Retorna estadísticas del dashboard calculadas en vivo desde los datos
+    cargados actualmente en memoria (generador) — no desde un archivo
+    estático, para que subir/sincronizar una tabla se refleje de inmediato.
+    """
+    if not datos_cargados or not generador:
         return jsonify({'error': 'No hay datos disponibles'}), 500
+
+    try:
+        df_cedis = generador.df_cedis
+        zonas = df_cedis['Código Zona'].astype(int)
+        codigos = df_cedis['Cliente: Código de Cliente'].astype(int)
+        es_ef = codigos.isin(generador.clientes_ef_ids)
+
+        supervisores = {}
+        totales = codigos.groupby(zonas).count()
+        ef_por_zona = codigos[es_ef].groupby(zonas[es_ef]).count()
+        for zona, total in totales.items():
+            supervisores[str(zona)] = {
+                'zona': int(zona),
+                'total_clientes': int(total),
+                'clientes_ef': int(ef_por_zona.get(zona, 0)),
+            }
+
+        return jsonify({
+            'cedis_total': len(df_cedis),
+            'ef_total': len(generador.clientes_ef_ids),
+            'ipp_mes_actual_total': len(generador.clientes_ipp_mes_actual),
+            'ipp_3meses_total': len(generador.clientes_ipp_dict),
+            'supervisores': supervisores,
+        })
+    except Exception as e:
+        return jsonify({'error': f'Error calculando estadísticas: {e}'}), 500
 
 @app.route('/api/generar-plan', methods=['POST'])
 def generar_plan():
