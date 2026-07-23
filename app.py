@@ -2,6 +2,7 @@ from flask import Flask, render_template, jsonify, request, send_file
 from generar_plan import GeneradorPlanVisitas
 import json
 import os
+import calendar
 from datetime import datetime
 
 app = Flask(__name__)
@@ -63,7 +64,7 @@ def generar_plan():
 
         # Procesar días de exclusión
         # Si el usuario define fin_visitas, excluir automáticamente los días después
-        num_dias_mes = 31
+        num_dias_mes = calendar.monthrange(ano, mes)[1]  # Obtener días reales del mes
         dias_exclusion_raw = datos.get('dias_exclusion', [])
 
         if isinstance(dias_exclusion_raw, str):
@@ -72,6 +73,7 @@ def generar_plan():
             dias_exclusion = [int(d) for d in dias_exclusion_raw if isinstance(d, (int, float)) and not (d != d)]  # Filtrar NaN
 
         # Agregar automáticamente días después del fin_visitas a la exclusión
+        # IMPORTANTE: Respeta el fin_visitas especificado por el usuario
         for dia in range(fin_visitas + 1, num_dias_mes + 1):
             if dia not in dias_exclusion:
                 dias_exclusion.append(dia)
