@@ -21,6 +21,14 @@ try:
     generador = GeneradorPlanVisitas()
     datos_cargados = True
     print("GeneradorPlanVisitas cargado correctamente")
+except FileNotFoundError as e:
+    # Esperado en un deploy nuevo: datos/*.xlsx no viaja en git (son datos,
+    # no código), así que la carpeta llega vacía hasta que se suba/sincronice
+    # algo desde la UI. No es un error real, así que no se imprime traceback
+    # (evita que un monitor de logs lo interprete como un crash).
+    print(f"Sin datos cargados todavía ({e}). Sube/sincroniza las tablas desde la UI.")
+    datos_cargados = False
+    generador = None
 except Exception as e:
     print(f"Error al cargar GeneradorPlanVisitas: {e}")
     import traceback

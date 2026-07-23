@@ -794,8 +794,21 @@
             try {
                 const response = await fetch(`${API_URL}/data`);
                 const data = await response.json();
-                globalData.supervisores = data.supervisores;
 
+                if (!response.ok || data.error) {
+                    document.getElementById('statsDashboard').innerHTML = `
+                        <div class="message info" style="grid-column: 1 / -1;">
+                            Todavía no hay datos cargados. Sube <strong>Clientes CEDIS</strong> y
+                            <strong>Clientes Equipo Frío</strong>, y sincroniza <strong>IPP</strong> desde
+                            Tableau más abajo para activar el planificador.
+                        </div>
+                    `;
+                    document.getElementById('supervisoresBody').innerHTML =
+                        '<tr><td colspan="5" style="text-align:center; color:#999;">Sin datos todavía</td></tr>';
+                    return;
+                }
+
+                globalData.supervisores = data.supervisores;
                 updateDashboard(data);
             } catch (error) {
                 document.getElementById('statsDashboard').innerHTML =
