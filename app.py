@@ -396,5 +396,9 @@ def sync_tableau_ipp_3meses():
 
 
 if __name__ == '__main__':
-    print("Iniciando servidor Flask en http://localhost:5000")
-    app.run(debug=True, port=5000, use_reloader=False)
+    # Puerto configurable: por defecto 5050 (no 5000) porque otro proyecto
+    # local del usuario (bot.py) ya usa 5000 — ambos peleaban por el puerto,
+    # y el que perdía el bind fallaba al arrancar.
+    port = int(os.environ.get('PORT', 5050))
+    print(f"Iniciando servidor Flask en http://localhost:{port}")
+    app.run(debug=True, port=port, use_reloader=False)
