@@ -1,237 +1,275 @@
+"""
+db_manager.py - Gestión de historial de cargas de datos con SQLite
+
+Cada carga (upload manual o sync desde Tableau) queda registrada como una
+fila nueva en el historial (nunca se sobreescribe), y se guarda un snapshot
+completo del archivo en datos_history/<tabla>/. Además se actualiza el
+archivo canónico en datos/<Tabla>.xlsx, que es el que lee generar_plan.py.
+"""
+
 import sqlite3
-import json
+import shutil
+import os
+import time
+import uuid
 from datetime import datetime
 from pathlib import Path
-import pandas as pd
+
+DB_PATH = "datos_planificador.db"
+HISTORY_DIR = Path("datos_history")
+DATOS_DIR = Path("datos")
+
+# Nombre de tabla lógica -> nombre de archivo canónico esperado por generar_plan.py
+TABLAS = {
+    "Clientes CEDIS": "Clientes CEDIS.xlsx",
+    "Clientes Equipo Frío": "Clientes Equipo Frío.xlsx",
+    "Clientes IPP Mes Actual": "Clientes IPP Mes Actual.xlsx",
+    "Clientes IPP Últimos 3 Meses": "Clientes IPP Últimos 3 Meses.xlsx",
+}
+
+
+def _reemplazar_con_reintentos(tmp_path, destino, intentos=5, espera=0.4):
+    """
+    os.replace(tmp_path, destino) con reintentos: en Windows el antivirus a
+    veces bloquea brevemente un .xlsx recién escrito (WinError 5 / 32).
+    """
+    for intento in range(1, intentos + 1):
+        try:
+            os.replace(tmp_path, destino)  # atómico en Windows y POSIX
+            return
+        except PermissionError:
+            if intento == intentos:
+                raise
+            time.sleep(espera)
+
+
+def _copiar_atomico(origen, destino, intentos=5, espera=0.4):
+    """
+    Copia origen -> destino sin dejar nunca un archivo a medias en destino:
+    escribe a un temporal ÚNICO (sufijo aleatorio) en el mismo directorio y
+    hace un rename atómico. El sufijo único evita que dos cargas concurrentes
+    (dos requests, o dos procesos del servidor corriendo a la vez) se pisen
+    escribiendo el mismo archivo temporal. Si el proceso se interrumpe a
+    mitad de camino, destino queda intacto o completamente reemplazado,
+    nunca corrupto.
+    """
+    destino = Path(destino)
+    tmp_destino = destino.with_name(f".{destino.name}.{uuid.uuid4().hex[:8]}.tmp")
+    try:
+        shutil.copy(origen, tmp_destino)
+        _reemplazar_con_reintentos(tmp_destino, destino, intentos, espera)
+    finally:
+        tmp_destino.unlink(missing_ok=True)  # por si el replace falló y quedó huérfano
+
+
+def _slug(tabla_nombre: str) -> str:
+    return (
+        tabla_nombre.lower()
+        .replace(" ", "_")
+        .replace("í", "i").replace("é", "e").replace("á", "a")
+        .replace("ó", "o").replace("ú", "u")
+    )
+
 
 class DatabaseManager:
-    def __init__(self, db_path="datos_planificador.db"):
+    def __init__(self, db_path=DB_PATH):
         self.db_path = db_path
-        self.conn = None
+        HISTORY_DIR.mkdir(exist_ok=True)
+        DATOS_DIR.mkdir(exist_ok=True)
         self.init_db()
 
     def init_db(self):
-        """Inicializa base de datos con tablas"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
-        # Tabla de historial de cargas
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS carga_historial (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tabla_nombre TEXT NOT NULL,
                 fecha_carga TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 num_registros INTEGER,
-                archivo_nombre TEXT,
+                archivo_original_nombre TEXT,
+                ruta_snapshot TEXT,
                 version_numero INTEGER,
+                origen TEXT,
                 estado TEXT,
                 notas TEXT
             )
         """)
-
-        # Tabla para Clientes CEDIS
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS clientes_cedis (
-                id INTEGER PRIMARY KEY,
-                codigo_cliente TEXT UNIQUE,
-                nombre_cliente TEXT,
-                zona INTEGER,
-                ruta INTEGER,
-                segmento TEXT,
-                compania TEXT,
-                sucursal TEXT,
-                version_id INTEGER,
-                fecha_carga TIMESTAMP
-            )
-        """)
-
-        # Tabla para Clientes Equipo Frío
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS clientes_equipo_frio (
-                id INTEGER PRIMARY KEY,
-                cliente_id TEXT UNIQUE,
-                nombre_cliente TEXT,
-                zona INTEGER,
-                ruta INTEGER,
-                segmento TEXT,
-                marca TEXT,
-                modelo TEXT,
-                version_id INTEGER,
-                fecha_carga TIMESTAMP
-            )
-        """)
-
-        # Tabla para Clientes IPP Mes Actual
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS clientes_ipp_mes_actual (
-                id INTEGER PRIMARY KEY,
-                codigo_cliente TEXT,
-                nombre_cliente TEXT,
-                zona INTEGER,
-                ruta INTEGER,
-                segmento TEXT,
-                mes_encuesta INTEGER,
-                ano_encuesta INTEGER,
-                version_id INTEGER,
-                fecha_carga TIMESTAMP
-            )
-        """)
-
-        # Tabla para Clientes IPP Últimos 3 Meses
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS clientes_ipp_3meses (
-                id INTEGER PRIMARY KEY,
-                codigo_cliente TEXT,
-                nombre_cliente TEXT,
-                zona INTEGER,
-                ruta INTEGER,
-                segmento TEXT,
-                mes_encuesta INTEGER,
-                ano_encuesta INTEGER,
-                version_id INTEGER,
-                fecha_carga TIMESTAMP
-            )
-        """)
-
         conn.commit()
         conn.close()
 
-    def registrar_carga(self, tabla_nombre, num_registros, archivo_nombre=None, notas=None):
-        """Registra una carga en el historial"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        # Obtener siguiente versión
+    def _siguiente_version(self, cursor, tabla_nombre):
         cursor.execute(
             "SELECT MAX(version_numero) FROM carga_historial WHERE tabla_nombre = ?",
-            (tabla_nombre,)
+            (tabla_nombre,),
         )
         max_version = cursor.fetchone()[0] or 0
-        version_numero = max_version + 1
+        return max_version + 1
+
+    def registrar_carga(self, tabla_nombre, snapshot_path, num_registros,
+                         archivo_original_nombre=None, origen="upload", notas=None):
+        """Inserta una fila nueva de historial (nunca reemplaza filas anteriores)."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        version_numero = self._siguiente_version(cursor, tabla_nombre)
 
         cursor.execute("""
             INSERT INTO carga_historial
-            (tabla_nombre, num_registros, archivo_nombre, version_numero, estado, notas)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (tabla_nombre, num_registros, archivo_nombre, version_numero, "OK", notas))
+            (tabla_nombre, num_registros, archivo_original_nombre, ruta_snapshot,
+             version_numero, origen, estado, notas)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (tabla_nombre, num_registros, archivo_original_nombre, str(snapshot_path),
+              version_numero, origen, "OK", notas))
 
         conn.commit()
+        version_id = cursor.lastrowid
         conn.close()
+        return version_id, version_numero
 
-        return version_numero
+    def guardar_snapshot_y_actualizar(self, tabla_nombre, df, archivo_original_nombre=None,
+                                       origen="upload", notas=None):
+        """
+        Guarda snapshot con fidelidad completa (columnas originales), actualiza
+        el archivo canónico en datos/ y registra la carga en el historial.
+        """
+        if tabla_nombre not in TABLAS:
+            raise ValueError(f"Tabla desconocida: {tabla_nombre}")
 
-    def cargar_excel_a_db(self, tabla_nombre, archivo_path, encoding='utf-8'):
-        """Carga datos de Excel a la base de datos"""
-        try:
-            df = pd.read_excel(archivo_path)
-            version_id = self.registrar_carga(
-                tabla_nombre,
-                len(df),
-                Path(archivo_path).name,
-                "Cargado desde Excel"
-            )
-
-            # Mapeo de tablas
-            tabla_db = {
-                'Clientes CEDIS': 'clientes_cedis',
-                'Clientes Equipo Frío': 'clientes_equipo_frio',
-                'Clientes IPP Mes Actual': 'clientes_ipp_mes_actual',
-                'Clientes IPP Últimos 3 Meses': 'clientes_ipp_3meses'
-            }.get(tabla_nombre)
-
-            if not tabla_db:
-                raise ValueError(f"Tabla desconocida: {tabla_nombre}")
-
-            # Normalizar columnas
-            df.columns = [col.lower().replace(' ', '_').replace('á', 'a').replace('é', 'e')
-                         for col in df.columns]
-            df['version_id'] = version_id
-            df['fecha_carga'] = datetime.now()
-
-            conn = sqlite3.connect(self.db_path)
-            df.to_sql(tabla_db, conn, if_exists='append', index=False)
-            conn.close()
-
-            return {"success": True, "version": version_id, "registros": len(df)}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    def obtener_historial(self, tabla_nombre=None):
-        """Obtiene historial de cargas"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
+        version_numero = self._siguiente_version(cursor, tabla_nombre)
+        conn.close()
 
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        tabla_dir = HISTORY_DIR / _slug(tabla_nombre)
+        tabla_dir.mkdir(parents=True, exist_ok=True)
+        snapshot_path = tabla_dir / f"v{version_numero}_{timestamp}.xlsx"
+
+        # Escribir snapshot a un temporal único y renombrar: nunca queda un .xlsx a medias
+        tmp_snapshot = snapshot_path.with_name(f".{snapshot_path.name}.{uuid.uuid4().hex[:8]}.tmp")
+        try:
+            df.to_excel(tmp_snapshot, index=False)
+            _reemplazar_con_reintentos(tmp_snapshot, snapshot_path)
+        finally:
+            tmp_snapshot.unlink(missing_ok=True)
+
+        # Actualizar archivo canónico que lee generar_plan.py (copia atómica desde el snapshot ya validado)
+        canonical_path = DATOS_DIR / TABLAS[tabla_nombre]
+        _copiar_atomico(snapshot_path, canonical_path)
+
+        version_id, version_numero = self.registrar_carga(
+            tabla_nombre, snapshot_path, len(df),
+            archivo_original_nombre, origen, notas
+        )
+
+        return {
+            "version_id": version_id,
+            "version_numero": version_numero,
+            "registros": len(df),
+            "snapshot": str(snapshot_path),
+        }
+
+    def cargar_excel_subido(self, tabla_nombre, archivo_path_temporal, archivo_original_nombre):
+        """
+        Procesa un archivo Excel subido por el usuario para una tabla específica.
+        Copia el archivo tal cual (sin pasar por pandas) para snapshot y canónico:
+        más rápido y preserva el archivo original con fidelidad total.
+        """
+        import pandas as pd
+        if tabla_nombre not in TABLAS:
+            raise ValueError(f"Tabla desconocida: {tabla_nombre}")
+
+        # Validar que el archivo es un Excel legible y contar registros
+        df = pd.read_excel(archivo_path_temporal)
+        num_registros = len(df)
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        version_numero = self._siguiente_version(cursor, tabla_nombre)
+        conn.close()
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        tabla_dir = HISTORY_DIR / _slug(tabla_nombre)
+        tabla_dir.mkdir(parents=True, exist_ok=True)
+        snapshot_path = tabla_dir / f"v{version_numero}_{timestamp}.xlsx"
+        canonical_path = DATOS_DIR / TABLAS[tabla_nombre]
+
+        _copiar_atomico(archivo_path_temporal, snapshot_path)
+        _copiar_atomico(archivo_path_temporal, canonical_path)
+
+        version_id, version_numero = self.registrar_carga(
+            tabla_nombre, snapshot_path, num_registros,
+            archivo_original_nombre, origen="upload"
+        )
+
+        return {
+            "version_id": version_id,
+            "version_numero": version_numero,
+            "registros": num_registros,
+            "snapshot": str(snapshot_path),
+        }
+
+    def obtener_historial(self, tabla_nombre=None):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
         if tabla_nombre:
             cursor.execute("""
-                SELECT id, tabla_nombre, fecha_carga, num_registros, archivo_nombre,
-                       version_numero, estado, notas
+                SELECT id, tabla_nombre, fecha_carga, num_registros,
+                       archivo_original_nombre, ruta_snapshot, version_numero,
+                       origen, estado, notas
                 FROM carga_historial
                 WHERE tabla_nombre = ?
                 ORDER BY fecha_carga DESC
             """, (tabla_nombre,))
         else:
             cursor.execute("""
-                SELECT id, tabla_nombre, fecha_carga, num_registros, archivo_nombre,
-                       version_numero, estado, notas
+                SELECT id, tabla_nombre, fecha_carga, num_registros,
+                       archivo_original_nombre, ruta_snapshot, version_numero,
+                       origen, estado, notas
                 FROM carga_historial
                 ORDER BY fecha_carga DESC
             """)
-
-        historial = cursor.fetchall()
+        columnas = [d[0] for d in cursor.description]
+        filas = [dict(zip(columnas, row)) for row in cursor.fetchall()]
         conn.close()
+        return filas
 
-        return historial
-
-    def obtener_datos_tabla(self, tabla_nombre, version_id=None):
-        """Obtiene datos de una tabla específica"""
-        tabla_db = {
-            'Clientes CEDIS': 'clientes_cedis',
-            'Clientes Equipo Frío': 'clientes_equipo_frio',
-            'Clientes IPP Mes Actual': 'clientes_ipp_mes_actual',
-            'Clientes IPP Últimos 3 Meses': 'clientes_ipp_3meses'
-        }.get(tabla_nombre)
-
-        if not tabla_db:
-            return None
-
+    def obtener_snapshot_path(self, version_id):
         conn = sqlite3.connect(self.db_path)
-
-        if version_id:
-            df = pd.read_sql_query(
-                f"SELECT * FROM {tabla_db} WHERE version_id = ? ORDER BY fecha_carga DESC",
-                conn,
-                params=(version_id,)
-            )
-        else:
-            df = pd.read_sql_query(
-                f"SELECT * FROM {tabla_db} WHERE version_id = (SELECT MAX(version_id) FROM {tabla_db})",
-                conn
-            )
-
+        cursor = conn.cursor()
+        cursor.execute("SELECT ruta_snapshot, tabla_nombre FROM carga_historial WHERE id = ?", (version_id,))
+        row = cursor.fetchone()
         conn.close()
-        return df
+        return row  # (ruta_snapshot, tabla_nombre) o None
 
-    def limpiar_tabla(self, tabla_nombre, excepto_version=None):
-        """Limpia datos antiguos manteniendo opcionalmente una versión"""
-        tabla_db = {
-            'Clientes CEDIS': 'clientes_cedis',
-            'Clientes Equipo Frío': 'clientes_equipo_frio',
-            'Clientes IPP Mes Actual': 'clientes_ipp_mes_actual',
-            'Clientes IPP Últimos 3 Meses': 'clientes_ipp_3meses'
-        }.get(tabla_nombre)
+    def restaurar_version(self, version_id):
+        """Copia un snapshot histórico como el archivo canónico actual (rollback)."""
+        row = self.obtener_snapshot_path(version_id)
+        if not row:
+            raise ValueError("Versión no encontrada")
+        ruta_snapshot, tabla_nombre = row
+        if tabla_nombre not in TABLAS:
+            raise ValueError(f"Tabla desconocida: {tabla_nombre}")
+
+        canonical_path = DATOS_DIR / TABLAS[tabla_nombre]
+        _copiar_atomico(ruta_snapshot, canonical_path)
 
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
-        if excepto_version:
-            cursor.execute(f"DELETE FROM {tabla_db} WHERE version_id != ?", (excepto_version,))
-        else:
-            cursor.execute(f"DELETE FROM {tabla_db}")
-
-        conn.commit()
+        cursor.execute("SELECT num_registros FROM carga_historial WHERE id = ?", (version_id,))
+        num_registros = cursor.fetchone()[0]
         conn.close()
+
+        version_id_nueva, version_numero = self.registrar_carga(
+            tabla_nombre, ruta_snapshot, num_registros,
+            archivo_original_nombre=f"Restaurado de v.{version_id}",
+            origen="rollback",
+            notas=f"Restaurada versión #{version_id}"
+        )
+        return {"version_id": version_id_nueva, "version_numero": version_numero, "tabla": tabla_nombre}
 
 
 if __name__ == "__main__":
     db = DatabaseManager()
     print("Base de datos inicializada correctamente")
+    print("Historial actual:", db.obtener_historial())

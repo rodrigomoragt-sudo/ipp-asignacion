@@ -33,3 +33,8 @@ plan_*.xlsx
 plan_*.csv
 *.output
 .DS_Store
+
+# Base de datos local y snapshots de historial (datos, no código)
+*.db
+datos_history/
+test_init.py

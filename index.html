@@ -530,82 +530,94 @@
             </div>
 
             <div class="config-section">
-                <h3>📁 Cargar y Actualizar Datos</h3>
-                <p style="margin-bottom: 15px;">Los datos se cargan automáticamente. Usa el botón para actualizar dinámicamente los clientes IPP.</p>
-                <button onclick="loadData()" style="margin-right: 10px;">🔄 Recargar Dashboard</button>
-                <button onclick="actualizarIPP()" class="secondary">📊 Actualizar Clientes IPP Mes</button>
-                <div id="ippStatus" style="margin-top: 10px; font-size: 0.9em;"></div>
+                <h3>📁 Datos</h3>
+                <p style="margin-bottom: 15px;">Recarga el dashboard con los datos actuales.</p>
+                <button onclick="loadData()">🔄 Recargar Dashboard</button>
             </div>
 
             <div class="config-section">
-                <h3>[^] Cargar Datos Actualizados</h3>
-                <p style="margin-bottom: 15px;">Selecciona los archivos Excel actualizados para reemplazar los datos actuales.</p>
+                <h3>🔄 Sincronizar IPP desde Tableau</h3>
+                <p style="margin-bottom: 15px;">Descarga automáticamente los clientes IPP encuestados directamente desde el reporte de Tableau — ya no es necesario subir estos Excel a mano.</p>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px;">
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745;">
+                        <h4 style="margin: 0 0 10px 0; color: #333;">IPP Mes Actual</h4>
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <select id="syncMesActual" style="flex: 1; padding: 8px;">
+                                <option value="1">Enero</option><option value="2">Febrero</option>
+                                <option value="3">Marzo</option><option value="4">Abril</option>
+                                <option value="5">Mayo</option><option value="6">Junio</option>
+                                <option value="7" selected>Julio</option><option value="8">Agosto</option>
+                                <option value="9">Septiembre</option><option value="10">Octubre</option>
+                                <option value="11">Noviembre</option><option value="12">Diciembre</option>
+                            </select>
+                            <input type="number" id="syncAnoActual" value="2026" style="width: 90px; padding: 8px;">
+                        </div>
+                        <button onclick="syncTableauMesActual()" style="width: 100%; background: #28a745;">⬇ Sincronizar desde Tableau</button>
+                    </div>
+
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #667eea;">
+                        <h4 style="margin: 0 0 10px 0; color: #333;">IPP Últimos Meses</h4>
+                        <p style="margin: 0 0 10px 0; font-size: 0.85em; color: #666;">Elige los meses a incluir (Ctrl/Cmd+click para varios)</p>
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <select id="syncMeses3" multiple style="flex: 1; padding: 8px; height: 90px;">
+                                <option value="1">Enero</option><option value="2">Febrero</option>
+                                <option value="3">Marzo</option><option value="4">Abril</option>
+                                <option value="5">Mayo</option><option value="6" selected>Junio</option>
+                                <option value="7" selected>Julio</option><option value="8">Agosto</option>
+                                <option value="9">Septiembre</option><option value="10">Octubre</option>
+                                <option value="11">Noviembre</option><option value="12">Diciembre</option>
+                            </select>
+                            <input type="number" id="syncAno3" value="2026" style="width: 90px; padding: 8px;">
+                        </div>
+                        <button onclick="syncTableauUltimosMeses()" style="width: 100%;">⬇ Sincronizar desde Tableau</button>
+                    </div>
+                </div>
+                <div id="tableauSyncStatus" style="margin-top: 15px;"></div>
+            </div>
+
+            <div class="config-section">
+                <h3>⬆ Cargar Tabla desde Excel</h3>
+                <p style="margin-bottom: 15px;">Selecciona la tabla a actualizar y sube el Excel — el nombre del archivo no importa, y cada carga queda guardada en el historial (no se pierde nada).</p>
+
+                <div class="form-group" style="margin-bottom: 15px; max-width: 400px;">
+                    <label for="tablaDestino">Tabla a actualizar</label>
+                    <select id="tablaDestino">
+                        <option value="Clientes CEDIS">Clientes CEDIS</option>
+                        <option value="Clientes Equipo Frío">Clientes Equipo Frío</option>
+                    </select>
+                </div>
+
                 <div id="uploadArea" style="border: 2px dashed #667eea; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 20px; cursor: pointer; background: #f9f9f9;">
-                    <p style="margin: 10px 0; color: #667eea; font-weight: 600;">Arrastra archivos aquí o haz click</p>
-                    <input type="file" id="fileInput" multiple accept=".xlsx" style="display: none;">
-                    <p style="margin: 10px 0; font-size: 0.85em; color: #999;">Soportados: .xlsx (Excel)</p>
+                    <p style="margin: 10px 0; color: #667eea; font-weight: 600;">Arrastra un archivo aquí o haz click</p>
+                    <input type="file" id="fileInput" accept=".xlsx" style="display: none;">
+                    <p style="margin: 10px 0; font-size: 0.85em; color: #999;">Un solo archivo .xlsx</p>
                 </div>
                 <div id="uploadStatus" style="margin-bottom: 20px;"></div>
-                <button onclick="enviarArchivos()" style="background: #28a745; margin-right: 10px;">↑ Enviar Archivos</button>
+                <button onclick="enviarArchivos()" style="background: #28a745; margin-right: 10px;">↑ Enviar Archivo</button>
                 <button class="secondary" onclick="limpiarUpload()">Cancelar</button>
             </div>
 
             <div class="config-section">
-                <h3>[*] Descargar Plantillas de Datos</h3>
-                <p style="margin-bottom: 20px;">Descarga las plantillas para actualizar información de clientes. Llena los datos y vuelve a subir.</p>
-
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
-                    <!-- Archivo 1: Clientes CEDIS -->
-                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #667eea;">
-                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <span style="font-size: 1.5em; margin-right: 10px;">[-]</span>
-                            <div>
-                                <h4 style="margin: 0; color: #333;">Clientes CEDIS</h4>
-                                <p style="margin: 3px 0; font-size: 0.85em; color: #666;">Maestro de 58,105 clientes</p>
-                            </div>
-                        </div>
-                        <p style="margin: 10px 0; font-size: 0.9em; color: #555;">Red de distribuidoras CEDIS - Información de todos los clientes de la red.</p>
-                        <button onclick="descargarPlantilla('Clientes CEDIS')" style="width: 100%; margin-top: 10px;">v Descargar Plantilla</button>
-                    </div>
-
-                    <!-- Archivo 2: Clientes Equipo Frío -->
-                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #667eea;">
-                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <span style="font-size: 1.5em; margin-right: 10px;">[-]</span>
-                            <div>
-                                <h4 style="margin: 0; color: #333;">Clientes Equipo Frío</h4>
-                                <p style="margin: 3px 0; font-size: 0.85em; color: #666;">5,068 clientes activos</p>
-                            </div>
-                        </div>
-                        <p style="margin: 10px 0; font-size: 0.9em; color: #555;">Clientes con equipo de refrigeración instalado - Prioridad máxima en visitas.</p>
-                        <button onclick="descargarPlantilla('Clientes Equipo Frío')" style="width: 100%; margin-top: 10px;">v Descargar Plantilla</button>
-                    </div>
-
-                    <!-- Archivo 3: Clientes IPP Mes Actual -->
-                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745;">
-                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <span style="font-size: 1.5em; margin-right: 10px;">[-]</span>
-                            <div>
-                                <h4 style="margin: 0; color: #333;">Clientes IPP Mes Actual</h4>
-                                <p style="margin: 3px 0; font-size: 0.85em; color: #666;">417 clientes encuestados</p>
-                            </div>
-                        </div>
-                        <p style="margin: 10px 0; font-size: 0.9em; color: #555;">Clientes encuestados en julio 2026 - Datos del mes en curso.</p>
-                        <button onclick="descargarPlantilla('Clientes IPP Mes Actual')" style="width: 100%; margin-top: 10px;">v Descargar Plantilla</button>
-                    </div>
-
-                    <!-- Archivo 4: Clientes IPP Últimos 3 Meses -->
-                    <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #667eea;">
-                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <span style="font-size: 1.5em; margin-right: 10px;">[-]</span>
-                            <div>
-                                <h4 style="margin: 0; color: #333;">Clientes IPP Últimos 3 Meses</h4>
-                                <p style="margin: 3px 0; font-size: 0.85em; color: #666;">1,408 clientes encuestados</p>
-                            </div>
-                        </div>
-                        <p style="margin: 10px 0; font-size: 0.9em; color: #555;">Clientes con encuestas realizadas en los últimos 3 meses - Histórico.</p>
-                        <button onclick="descargarPlantilla('Clientes IPP Últimos 3 Meses')" style="width: 100%; margin-top: 10px;">v Descargar Plantilla</button>
-                    </div>
+                <h3>🕘 Historial de Cargas</h3>
+                <p style="margin-bottom: 15px;">Cada carga (manual o desde Tableau) queda registrada. Puedes restaurar una versión anterior si algo sale mal.</p>
+                <div class="table-responsive">
+                    <table id="historialTable">
+                        <thead>
+                            <tr>
+                                <th>Tabla</th>
+                                <th>Versión</th>
+                                <th>Fecha</th>
+                                <th>Registros</th>
+                                <th>Origen</th>
+                                <th>Archivo</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historialBody">
+                            <tr><td colspan="7" class="loading">Cargando historial...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -1254,28 +1266,27 @@
             document.getElementById('detailsModal').classList.remove('active');
         }
 
-        // Actualizar lista de clientes IPP encuestados en el mes
-        async function actualizarIPP() {
-            const statusDiv = document.getElementById('ippStatus');
-            statusDiv.innerHTML = '<div class="loading"><div class="spinner" style="width:20px;height:20px;"></div><p style="margin:0;">Actualizando...</p></div>';
+        // Sincronizar IPP Mes Actual desde Tableau
+        async function syncTableauMesActual() {
+            const mes = parseInt(document.getElementById('syncMesActual').value);
+            const ano = parseInt(document.getElementById('syncAnoActual').value);
+            const statusDiv = document.getElementById('tableauSyncStatus');
+
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner" style="width:20px;height:20px;"></div><p style="margin:0;">Sincronizando con Tableau...</p></div>';
 
             try {
-                const response = await fetch(`${API_URL}/actualizar-ipp`, {
-                    method: 'POST'
+                const response = await fetch(`${API_URL}/sync-tableau/ipp-mes-actual`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mes, ano })
                 });
-
                 const resultado = await response.json();
 
                 if (resultado.success) {
-                    // Actualizar el contador en el dashboard
-                    document.getElementById('ippMesActual').textContent = resultado.total_encuestados.toLocaleString();
-
-                    statusDiv.innerHTML = `
-                        <div class="message success">
-                            <strong>✓ ${resultado.mensaje}</strong><br>
-                            Total encuestados en el mes: ${resultado.total_encuestados} clientes
-                        </div>
-                    `;
+                    statusDiv.innerHTML = `<div class="message success"><strong>✓ IPP Mes Actual actualizado</strong> — v${resultado.version_numero}, ${resultado.registros} registros</div>`;
+                    mostrarNotificacion('success', 'Sincronizado desde Tableau');
+                    cargarHistorial();
+                    loadData();
                 } else {
                     statusDiv.innerHTML = `<div class="message error">Error: ${resultado.error}</div>`;
                 }
@@ -1284,66 +1295,95 @@
             }
         }
 
-        // Descargar archivos maestros
-        function descargarArchivo(nombreArchivo, etiqueta) {
-            const spinner = document.createElement('div');
-            spinner.className = 'spinner';
-            spinner.style.display = 'inline-block';
-            spinner.style.marginLeft = '10px';
+        // Sincronizar IPP Últimos Meses desde Tableau
+        async function syncTableauUltimosMeses() {
+            const select = document.getElementById('syncMeses3');
+            const meses = Array.from(select.selectedOptions).map(o => parseInt(o.value));
+            const ano = parseInt(document.getElementById('syncAno3').value);
+            const statusDiv = document.getElementById('tableauSyncStatus');
 
-            const event = window.event;
-            const boton = event.target;
-            const textoOriginal = boton.textContent;
+            if (meses.length === 0) {
+                mostrarNotificacion('error', 'Selecciona al menos un mes');
+                return;
+            }
 
-            boton.disabled = true;
-            boton.textContent = 'Descargando...';
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner" style="width:20px;height:20px;"></div><p style="margin:0;">Sincronizando con Tableau...</p></div>';
 
             try {
-                const link = document.createElement('a');
-                link.href = nombreArchivo;
-                link.download = nombreArchivo;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                const response = await fetch(`${API_URL}/sync-tableau/ipp-3meses`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ meses, ano })
+                });
+                const resultado = await response.json();
 
-                mostrarNotificacion('success', `${etiqueta} descargado exitosamente`);
-
-                setTimeout(() => {
-                    boton.disabled = false;
-                    boton.textContent = textoOriginal;
-                }, 1000);
+                if (resultado.success) {
+                    statusDiv.innerHTML = `<div class="message success"><strong>✓ IPP Últimos Meses actualizado</strong> — v${resultado.version_numero}, ${resultado.registros} registros</div>`;
+                    mostrarNotificacion('success', 'Sincronizado desde Tableau');
+                    cargarHistorial();
+                    loadData();
+                } else {
+                    statusDiv.innerHTML = `<div class="message error">Error: ${resultado.error}</div>`;
+                }
             } catch (error) {
-                mostrarNotificacion('error', `Error al descargar ${etiqueta}: ${error.message}`);
-                boton.disabled = false;
-                boton.textContent = textoOriginal;
+                statusDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
             }
         }
 
-        // Descargar plantillas desde carpeta plantillas/
-        function descargarPlantilla(nombrePlantilla) {
-            const boton = event.target;
-            const textoOriginal = boton.textContent;
-            boton.disabled = true;
-            boton.textContent = 'Descargando...';
+        // Cargar historial de cargas
+        async function cargarHistorial() {
+            const tbody = document.getElementById('historialBody');
+            try {
+                const response = await fetch(`${API_URL}/historial`);
+                const resultado = await response.json();
+                const filas = resultado.historial || [];
+
+                if (filas.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#999;">Sin cargas registradas todavía</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = filas.map(f => {
+                    const fecha = new Date(f.fecha_carga).toLocaleString('es-GT');
+                    const origenBadge = f.origen === 'tableau'
+                        ? '<span class="status-badge status-scheduled">Tableau</span>'
+                        : f.origen === 'rollback'
+                            ? '<span class="status-badge status-pending">Restaurado</span>'
+                            : '<span class="status-badge status-completed">Manual</span>';
+                    return `
+                        <tr>
+                            <td>${f.tabla_nombre}</td>
+                            <td>v${f.version_numero}</td>
+                            <td>${fecha}</td>
+                            <td>${f.num_registros}</td>
+                            <td>${origenBadge}</td>
+                            <td style="font-size:0.85em; color:#666;">${f.archivo_original_nombre || '-'}</td>
+                            <td><button class="secondary" style="padding:6px 12px; font-size:0.85em;" onclick="restaurarVersion(${f.id})">↺ Restaurar</button></td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="7" class="message error">Error al cargar historial: ${error.message}</td></tr>`;
+            }
+        }
+
+        // Restaurar una versión anterior
+        async function restaurarVersion(versionId) {
+            if (!confirm('¿Restaurar esta versión como la actual?')) return;
 
             try {
-                const link = document.createElement('a');
-                link.href = `/plantillas/${nombrePlantilla}.xlsx`;
-                link.download = `${nombrePlantilla}.xlsx`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                const response = await fetch(`${API_URL}/historial/restaurar/${versionId}`, { method: 'POST' });
+                const resultado = await response.json();
 
-                mostrarNotificacion('success', `Plantilla ${nombrePlantilla} descargada`);
-
-                setTimeout(() => {
-                    boton.disabled = false;
-                    boton.textContent = textoOriginal;
-                }, 1000);
+                if (resultado.success) {
+                    mostrarNotificacion('success', `Restaurado: ${resultado.tabla} v${resultado.version_numero}`);
+                    cargarHistorial();
+                    loadData();
+                } else {
+                    mostrarNotificacion('error', resultado.error);
+                }
             } catch (error) {
-                mostrarNotificacion('error', `Error: ${error.message}`);
-                boton.disabled = false;
-                boton.textContent = textoOriginal;
+                mostrarNotificacion('error', 'Error: ' + error.message);
             }
         }
 
@@ -1385,32 +1425,30 @@
                 return;
             }
 
-            let html = '<div style="background: #e8f5e9; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745;"><strong>Archivos seleccionados:</strong><ul style="margin: 10px 0;">';
-            for (let file of fileInput.files) {
-                html += `<li>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</li>`;
-            }
-            html += '</ul></div>';
-            statusDiv.innerHTML = html;
+            const file = fileInput.files[0];
+            statusDiv.innerHTML = `<div style="background: #e8f5e9; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745;">
+                <strong>Archivo seleccionado:</strong> ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)
+            </div>`;
         }
 
         async function enviarArchivos() {
             const fileInput = document.getElementById('fileInput');
             const statusDiv = document.getElementById('uploadStatus');
+            const tabla = document.getElementById('tablaDestino').value;
 
             if (fileInput.files.length === 0) {
-                mostrarNotificacion('error', 'Selecciona archivos primero');
+                mostrarNotificacion('error', 'Selecciona un archivo primero');
                 return;
             }
 
             const formData = new FormData();
-            for (let file of fileInput.files) {
-                formData.append('files', file);
-            }
+            formData.append('tabla', tabla);
+            formData.append('file', fileInput.files[0]);
 
             try {
                 statusDiv.innerHTML = '<div style="text-align: center;"><div class="spinner" style="display: inline-block; width: 24px; height: 24px;"></div><p>Subiendo...</p></div>';
 
-                const response = await fetch(`${API_URL}/subir-datos`, {
+                const response = await fetch(`${API_URL}/cargar-tabla`, {
                     method: 'POST',
                     body: formData
                 });
@@ -1419,11 +1457,12 @@
 
                 if (resultado.success) {
                     statusDiv.innerHTML = `<div style="background: #e8f5e9; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745;">
-                        <strong style="color: #28a745;">Archivos subidos exitosamente</strong>
+                        <strong style="color: #28a745;">${tabla} actualizado</strong>
                         <p style="margin: 10px 0; font-size: 0.9em;">${resultado.mensaje}</p>
                     </div>`;
                     mostrarNotificacion('success', 'Datos actualizados correctamente');
                     limpiarUpload();
+                    cargarHistorial();
                     setTimeout(() => loadData(), 1000);
                 } else {
                     statusDiv.innerHTML = `<div style="background: #ffebee; padding: 15px; border-radius: 6px; border-left: 4px solid #dc3545;">
@@ -1446,6 +1485,7 @@
         // Cargar datos al iniciar
         window.onload = function() {
             loadData();
+            cargarHistorial();
         };
     </script>
 </body>

@@ -1,189 +1,134 @@
 """
-tableau_sync.py - Sincronización automática de datos desde Tableau
-Extrae datos IPP del reporte "CLIENTES IPP" en Tableau
+tableau_sync.py - Sincronización automática de datos IPP desde Tableau
+
+Reemplaza la carga manual de "Clientes IPP Mes Actual.xlsx" y
+"Clientes IPP Últimos 3 Meses.xlsx": descarga la vista "Clientes IPP"
+(workbook GTM) directamente desde Tableau Server, filtrando por mes(es)
+y año elegidos, y la guarda vía db_manager (snapshot + historial +
+archivo canónico).
 """
 
 import os
+import io
 import pandas as pd
-from datetime import datetime
 from db_manager import DatabaseManager
 
-# Configuración Tableau
-# IMPORTANTE: Configurar estas variables en el entorno de producción
+# Configuración Tableau — usar variables de entorno, nunca hardcodear.
 TABLEAU_TOKEN_NAME = os.environ.get("TABLEAU_TOKEN_NAME", "")
 TABLEAU_TOKEN_VALUE = os.environ.get("TABLEAU_TOKEN_VALUE", "")
 TABLEAU_SERVER_URL = os.environ.get("TABLEAU_SERVER_URL", "https://bitableau.ajegroup.com/")
 TABLEAU_SITE_ID = os.environ.get("TABLEAU_SITE_ID", "Cam")
 
 WORKBOOK_IPP = "GTM"
-VIEW_IPP_CURRENT = "Clientes IPP"
+VIEW_IPP = "Clientes IPP"
+
+# Nombres para mostrar/loguear (español)
+MESES_NOMBRE = {
+    1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio",
+    7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre",
+}
+
+# El filtro "Mes" de la vista en Tableau espera el nombre del mes en INGLÉS
+# (confirmado probando contra el servidor: "Julio" no filtra, "July" sí).
+MESES_FILTRO_TABLEAU = {
+    1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
+    7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December",
+}
 
 
 class TableauSync:
     def __init__(self):
         self.db = DatabaseManager()
 
-    def descargar_ipp_mes_actual(self, mes=None, ano=None):
-        """Descarga clientes IPP del mes actual desde Tableau"""
-        if not mes:
-            mes = datetime.now().month
-        if not ano:
-            ano = datetime.now().year
-
-        try:
-            import tableauserverclient as TSC
-        except ImportError:
+    def _validar_credenciales(self):
+        if not TABLEAU_TOKEN_NAME or not TABLEAU_TOKEN_VALUE:
             return {
                 "success": False,
-                "error": "tableauserverclient no instalado. Ejecuta: pip install tableauserverclient"
+                "error": (
+                    "Credenciales de Tableau no configuradas. Define las variables de "
+                    "entorno TABLEAU_TOKEN_NAME y TABLEAU_TOKEN_VALUE."
+                ),
             }
+        return None
+
+    def _descargar_vista_csv(self, ano, meses):
+        """Sign-in a Tableau, aplica filtros Año/Mes sobre la vista Clientes IPP y devuelve un DataFrame."""
+        import tableauserverclient as TSC
+
+        auth = TSC.PersonalAccessTokenAuth(TABLEAU_TOKEN_NAME, TABLEAU_TOKEN_VALUE, TABLEAU_SITE_ID)
+        server = TSC.Server(TABLEAU_SERVER_URL, use_server_version=False)
+
+        with server.auth.sign_in(auth):
+            server.use_server_version()
+
+            all_wbs, _ = server.workbooks.get(TSC.RequestOptions(pagesize=1000))
+            wb = next((w for w in all_wbs if w.name == WORKBOOK_IPP), None)
+            if not wb:
+                disponibles = ", ".join(sorted(w.name for w in all_wbs))
+                raise RuntimeError(f"Workbook '{WORKBOOK_IPP}' no encontrado. Disponibles: {disponibles}")
+
+            server.workbooks.populate_views(wb)
+            view = next((v for v in wb.views if v.name == VIEW_IPP), None)
+            if not view:
+                disponibles = ", ".join(v.name for v in wb.views)
+                raise RuntimeError(f"Vista '{VIEW_IPP}' no encontrada. Disponibles: {disponibles}")
+
+            opts = TSC.CSVRequestOptions()
+            opts.max_age = 0
+            opts.vf("Año", str(ano))
+            opts.vf("Mes", ",".join(MESES_FILTRO_TABLEAU[m] for m in meses))
+
+            server.views.populate_csv(view, opts)
+            raw = b"".join(view.csv)
+
+        if not raw:
+            raise RuntimeError("Tableau devolvió datos vacíos para los filtros indicados.")
+
+        df = pd.read_csv(io.BytesIO(raw), encoding="utf-8-sig")
+        df.columns = [str(c).strip() for c in df.columns]
+        return df
+
+    def descargar_ipp_mes_actual(self, mes, ano):
+        """Descarga clientes IPP encuestados en un mes específico -> tabla 'Clientes IPP Mes Actual'."""
+        error = self._validar_credenciales()
+        if error:
+            return error
 
         try:
-            auth = TSC.PersonalAccessTokenAuth(TABLEAU_TOKEN_NAME, TABLEAU_TOKEN_VALUE, TABLEAU_SITE_ID)
-            server = TSC.Server(TABLEAU_SERVER_URL, use_server_version=False)
-
-            with server.auth.sign_in(auth):
-                server.use_server_version()
-
-                # Obtener workbook
-                all_wbs, _ = server.workbooks.get()
-                wb = next((w for w in all_wbs if w.name == WORKBOOK_IPP), None)
-                if not wb:
-                    return {"success": False, "error": f"Workbook '{WORKBOOK_IPP}' no encontrado"}
-
-                # Obtener vista
-                server.workbooks.populate_views(wb)
-                view = next((v for v in wb.views if v.name == VIEW_IPP_CURRENT), None)
-                if not view:
-                    return {"success": False, "error": f"Vista '{VIEW_IPP_CURRENT}' no encontrada"}
-
-                # Descargar como CSV con filtros
-                opts = TSC.CSVRequestOptions()
-                opts.max_age = 0
-                # Filtrar por mes y año si es necesario
-                # opts.vf("MONTH(fecha)", str(mes))
-                # opts.vf("YEAR(fecha)", str(ano))
-
-                server.views.populate_csv(view, opts)
-                raw = b"".join(view.csv)
-
-                if not raw:
-                    return {"success": False, "error": "Tableau devolvió datos vacíos"}
-
-                # Procesar CSV
-                df = pd.read_csv(pd.io.common.BytesIO(raw), encoding='utf-8')
-
-                # Normalizar columnas
-                df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
-
-                # Guardar en DB
-                version = self.db.registrar_carga(
-                    'Clientes IPP Mes Actual',
-                    len(df),
-                    f"Tableau_IPP_{mes}_{ano}.csv",
-                    f"Descargado de Tableau - Mes {mes}/{ano}"
-                )
-
-                # Limpiar nombres de columnas para compatibilidad
-                if 'cod_cliente' in df.columns or 'codigo_cliente' in df.columns:
-                    col_cod = 'cod_cliente' if 'cod_cliente' in df.columns else 'codigo_cliente'
-                    df = df.rename(columns={col_cod: 'codigo_cliente'})
-
-                df['version_id'] = version
-                df['fecha_carga'] = datetime.now()
-
-                # Guardar en SQLite
-                conn = __import__('sqlite3').connect(self.db.db_path)
-                df.to_sql('clientes_ipp_mes_actual', conn, if_exists='append', index=False)
-                conn.close()
-
-                return {
-                    "success": True,
-                    "version": version,
-                    "registros": len(df),
-                    "mes": mes,
-                    "ano": ano
-                }
-
+            df = self._descargar_vista_csv(ano, [mes])
+            resultado = self.db.guardar_snapshot_y_actualizar(
+                "Clientes IPP Mes Actual", df,
+                archivo_original_nombre=f"Tableau_{MESES_NOMBRE[mes]}_{ano}.csv",
+                origen="tableau",
+                notas=f"Sync automático desde Tableau — {MESES_NOMBRE[mes]} {ano}",
+            )
+            return {"success": True, "mes": mes, "ano": ano, **resultado}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def descargar_ipp_ultimos_meses(self, meses=[7, 8, 9], ano=2026):
-        """Descarga clientes IPP de los últimos N meses desde Tableau"""
-        try:
-            import tableauserverclient as TSC
-        except ImportError:
-            return {
-                "success": False,
-                "error": "tableauserverclient no instalado"
-            }
+    def descargar_ipp_ultimos_meses(self, meses, ano):
+        """Descarga clientes IPP para varios meses -> tabla 'Clientes IPP Últimos 3 Meses'."""
+        error = self._validar_credenciales()
+        if error:
+            return error
 
         try:
-            auth = TSC.PersonalAccessTokenAuth(TABLEAU_TOKEN_NAME, TABLEAU_TOKEN_VALUE, TABLEAU_SITE_ID)
-            server = TSC.Server(TABLEAU_SERVER_URL, use_server_version=False)
-
-            dfs = []
-
-            with server.auth.sign_in(auth):
-                server.use_server_version()
-
-                all_wbs, _ = server.workbooks.get()
-                wb = next((w for w in all_wbs if w.name == WORKBOOK_IPP), None)
-                if not wb:
-                    return {"success": False, "error": f"Workbook no encontrado"}
-
-                server.workbooks.populate_views(wb)
-                view = next((v for v in wb.views if v.name == VIEW_IPP_CURRENT), None)
-                if not view:
-                    return {"success": False, "error": f"Vista no encontrada"}
-
-                # Descargar para cada mes
-                for mes in meses:
-                    opts = TSC.CSVRequestOptions()
-                    opts.max_age = 0
-                    # Filtros opcionales por mes
-                    server.views.populate_csv(view, opts)
-                    raw = b"".join(view.csv)
-
-                    if raw:
-                        df = pd.read_csv(pd.io.common.BytesIO(raw), encoding='utf-8')
-                        df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
-                        df['mes_original'] = mes
-                        dfs.append(df)
-
-            if not dfs:
-                return {"success": False, "error": "No se descargaron datos"}
-
-            df_combined = pd.concat(dfs, ignore_index=True)
-
-            version = self.db.registrar_carga(
-                'Clientes IPP Últimos 3 Meses',
-                len(df_combined),
-                f"Tableau_IPP_3meses_{ano}.csv",
-                f"Descargado de Tableau - Últimos 3 meses"
+            df = self._descargar_vista_csv(ano, meses)
+            nombres_meses = ", ".join(MESES_NOMBRE[m] for m in meses)
+            resultado = self.db.guardar_snapshot_y_actualizar(
+                "Clientes IPP Últimos 3 Meses", df,
+                archivo_original_nombre=f"Tableau_{'-'.join(str(m) for m in meses)}_{ano}.csv",
+                origen="tableau",
+                notas=f"Sync automático desde Tableau — {nombres_meses} {ano}",
             )
-
-            df_combined['version_id'] = version
-            df_combined['fecha_carga'] = datetime.now()
-
-            conn = __import__('sqlite3').connect(self.db.db_path)
-            df_combined.to_sql('clientes_ipp_3meses', conn, if_exists='append', index=False)
-            conn.close()
-
-            return {
-                "success": True,
-                "version": version,
-                "registros": len(df_combined),
-                "meses": meses,
-                "ano": ano
-            }
-
+            return {"success": True, "meses": meses, "ano": ano, **resultado}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
 
 if __name__ == "__main__":
+    from datetime import datetime
     sync = TableauSync()
-    print("Descargando IPP Mes Actual...")
-    resultado = sync.descargar_ipp_mes_actual()
-    print(resultado)
+    hoy = datetime.now()
+    print(f"Descargando IPP mes actual ({hoy.month}/{hoy.year})...")
+    print(sync.descargar_ipp_mes_actual(hoy.month, hoy.year))

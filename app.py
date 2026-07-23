@@ -1,12 +1,16 @@
 from flask import Flask, render_template, jsonify, request, send_file
 from generar_plan import GeneradorPlanVisitas
+from db_manager import DatabaseManager, TABLAS
 import json
 import os
 import calendar
+import tempfile
 from datetime import datetime
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = os.path.dirname(__file__)
+
+db = DatabaseManager()
 
 # Inicializar generador
 try:
@@ -187,61 +191,6 @@ def exportar_csv():
         print(f"Error en exportar_csv: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/actualizar-ipp', methods=['POST'])
-def actualizar_clientes_ipp():
-    """Actualiza dinámicamente la lista de clientes IPP del mes actual"""
-    try:
-        if not datos_cargados or not generador:
-            return jsonify({'error': 'Sistema no inicializado'}), 500
-
-        # Recargar datos IPP desde Excel
-        import pandas as pd
-        df_ipp_actual = pd.read_excel('datos/Clientes IPP Mes Actual.xlsx')
-        generador.clientes_ipp_mes_actual = set(df_ipp_actual['Cod Cliente'].unique())
-
-        total_ipp = len(generador.clientes_ipp_mes_actual)
-
-        return jsonify({
-            'success': True,
-            'mensaje': f'Lista IPP actualizada: {total_ipp} clientes encuestados en el mes',
-            'total_encuestados': total_ipp
-        })
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/subir-datos', methods=['POST'])
-def subir_datos():
-    """Recibe archivos Excel y los reemplaza en la carpeta datos/"""
-    try:
-        if 'files' not in request.files:
-            return jsonify({'success': False, 'error': 'No se enviaron archivos'}), 400
-
-        archivos_subidos = []
-        for file in request.files.getlist('files'):
-            if file and file.filename.endswith('.xlsx'):
-                # Guardar en carpeta datos/
-                archivo_path = os.path.join('datos', file.filename)
-                file.save(archivo_path)
-                archivos_subidos.append(file.filename)
-
-        # Reiniciar el generador para cargar nuevos datos
-        global generador, datos_cargados
-        try:
-            generador = GeneradorPlanVisitas()
-            datos_cargados = True
-        except Exception as e:
-            return jsonify({'success': False, 'error': f'Error al cargar nuevos datos: {str(e)}'}), 500
-
-        return jsonify({
-            'success': True,
-            'mensaje': f'{len(archivos_subidos)} archivo(s) actualizado(s): {", ".join(archivos_subidos)}',
-            'archivos': archivos_subidos
-        })
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
 @app.route('/api/estadisticas', methods=['GET'])
 def obtener_estadisticas():
     """Retorna estadísticas del plan generado"""
@@ -270,6 +219,144 @@ def obtener_estadisticas():
 
     except FileNotFoundError:
         return jsonify({'error': 'No hay plan generado'}), 400
+
+def _recargar_generador():
+    """Reinicia el generador para que tome los archivos canónicos más recientes"""
+    global generador, datos_cargados
+    try:
+        generador = GeneradorPlanVisitas()
+        datos_cargados = True
+        return True, None
+    except Exception as e:
+        datos_cargados = False
+        return False, str(e)
+
+
+@app.route('/api/tablas', methods=['GET'])
+def listar_tablas():
+    """Lista las tablas disponibles para cargar/actualizar"""
+    return jsonify({'tablas': list(TABLAS.keys())})
+
+
+@app.route('/api/cargar-tabla', methods=['POST'])
+def cargar_tabla():
+    """
+    Sube un Excel para UNA tabla específica elegida por el usuario.
+    No importa el nombre del archivo: se guarda como nueva versión en el
+    historial y se actualiza el archivo canónico que usa el planificador.
+    """
+    try:
+        tabla_nombre = request.form.get('tabla', '').strip()
+        if tabla_nombre not in TABLAS:
+            return jsonify({'success': False, 'error': f'Tabla inválida: {tabla_nombre}'}), 400
+
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No se envió ningún archivo'}), 400
+
+        file = request.files['file']
+        if not file or not file.filename.endswith('.xlsx'):
+            return jsonify({'success': False, 'error': 'El archivo debe ser .xlsx'}), 400
+
+        fd, tmp_path = tempfile.mkstemp(suffix='.xlsx')
+        os.close(fd)  # liberar el handle antes de que file.save() escriba en la misma ruta (Windows la bloquea si sigue abierta)
+        file.save(tmp_path)
+
+        try:
+            resultado = db.cargar_excel_subido(tabla_nombre, tmp_path, file.filename)
+        finally:
+            os.unlink(tmp_path)
+
+        ok, error = _recargar_generador()
+        if not ok:
+            return jsonify({
+                'success': False,
+                'error': f'Archivo guardado pero falló al recargar datos: {error}'
+            }), 500
+
+        return jsonify({
+            'success': True,
+            'mensaje': f'{tabla_nombre} actualizado (v{resultado["version_numero"]}) — {resultado["registros"]} registros',
+            **resultado
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/historial', methods=['GET'])
+def historial():
+    """Devuelve el historial de cargas, opcionalmente filtrado por tabla"""
+    tabla_nombre = request.args.get('tabla')
+    filas = db.obtener_historial(tabla_nombre)
+    return jsonify({'historial': filas})
+
+
+@app.route('/api/historial/restaurar/<int:version_id>', methods=['POST'])
+def restaurar_version(version_id):
+    """Restaura una versión anterior como la actual (rollback)"""
+    try:
+        resultado = db.restaurar_version(version_id)
+        ok, error = _recargar_generador()
+        if not ok:
+            return jsonify({'success': False, 'error': f'Restaurado pero falló al recargar: {error}'}), 500
+        return jsonify({'success': True, **resultado})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/sync-tableau/ipp-mes-actual', methods=['POST'])
+def sync_tableau_ipp_actual():
+    """Descarga desde Tableau los clientes IPP encuestados en un mes específico"""
+    try:
+        from tableau_sync import TableauSync
+        datos = request.json or {}
+        hoy = datetime.now()
+        mes = int(datos.get('mes', hoy.month))
+        ano = int(datos.get('ano', hoy.year))
+
+        sync = TableauSync()
+        resultado = sync.descargar_ipp_mes_actual(mes, ano)
+
+        if not resultado.get('success'):
+            return jsonify(resultado), 400
+
+        ok, error = _recargar_generador()
+        if not ok:
+            return jsonify({'success': False, 'error': f'Sincronizado pero falló al recargar: {error}'}), 500
+
+        return jsonify(resultado)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/sync-tableau/ipp-3meses', methods=['POST'])
+def sync_tableau_ipp_3meses():
+    """Descarga desde Tableau los clientes IPP de los meses seleccionados (ej: 3 meses)"""
+    try:
+        from tableau_sync import TableauSync
+        datos = request.json or {}
+        hoy = datetime.now()
+        meses = datos.get('meses')
+        if not meses:
+            # Por defecto: mes actual y los 2 anteriores
+            meses = [((hoy.month - i - 1) % 12) + 1 for i in range(3)]
+        meses = [int(m) for m in meses]
+        ano = int(datos.get('ano', hoy.year))
+
+        sync = TableauSync()
+        resultado = sync.descargar_ipp_ultimos_meses(meses, ano)
+
+        if not resultado.get('success'):
+            return jsonify(resultado), 400
+
+        ok, error = _recargar_generador()
+        if not ok:
+            return jsonify({'success': False, 'error': f'Sincronizado pero falló al recargar: {error}'}), 500
+
+        return jsonify(resultado)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     print("Iniciando servidor Flask en http://localhost:5000")
