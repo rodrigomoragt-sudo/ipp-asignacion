@@ -38,3 +38,6 @@ plan_*.csv
 *.db
 datos_history/
 test_init.py
+
+# Credenciales locales (nunca subir)
+.env

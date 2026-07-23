@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # carga .env (credenciales de Tableau, etc.) antes de leer os.environ abajo
+
 from flask import Flask, render_template, jsonify, request, send_file
 from generar_plan import GeneradorPlanVisitas
 from db_manager import DatabaseManager, TABLAS
