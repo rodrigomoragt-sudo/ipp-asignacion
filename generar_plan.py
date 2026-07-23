@@ -3,19 +3,21 @@ import json
 from datetime import datetime, timedelta
 from collections import defaultdict
 import calendar
-import sys
 
 class GeneradorPlanVisitas:
     def __init__(self):
-        """Inicializar con datos de los excels desde carpeta datos/"""
-        try:
-            self.df_cedis = pd.read_excel("datos/Clientes CEDIS.xlsx")
-            self.df_ipp = pd.read_excel("datos/Clientes IPP Últimos 3 Meses.xlsx")  # Últimos 3 meses
-            self.df_ipp_actual = pd.read_excel("datos/Clientes IPP Mes Actual.xlsx")  # Mes actual
-            self.df_ef = pd.read_excel("datos/Clientes Equipo Frío.xlsx")
-        except FileNotFoundError as e:
-            print(f"Error: {e}")
-            sys.exit(1)
+        """
+        Inicializar con datos de los excels desde carpeta datos/.
+        Si algún archivo falta (ej. contenedor recién desplegado, sin datos
+        cargados todavía) se propaga el FileNotFoundError tal cual — quien
+        instancia esta clase decide qué hacer (app.py la atrapa y deja el
+        servidor arriba con datos_cargados=False, para que el usuario pueda
+        subir/sincronizar las tablas desde la UI).
+        """
+        self.df_cedis = pd.read_excel("datos/Clientes CEDIS.xlsx")
+        self.df_ipp = pd.read_excel("datos/Clientes IPP Últimos 3 Meses.xlsx")  # Últimos 3 meses
+        self.df_ipp_actual = pd.read_excel("datos/Clientes IPP Mes Actual.xlsx")  # Mes actual
+        self.df_ef = pd.read_excel("datos/Clientes Equipo Frío.xlsx")
 
         # Crear conjuntos de clientes para búsqueda rápida
         self.clientes_ef_ids = set(self.df_ef['Cliente_id'].unique())

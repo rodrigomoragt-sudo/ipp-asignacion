@@ -1,0 +1,16 @@
+.git/
+.claude/
+.env
+.env.example
+*.xlsx
+*.xls
+~$*
+*.db
+datos_history/
+__pycache__/
+*.pyc
+*.output
+plan_*.json
+plan_*.csv
+*.md
+server_log.txt*
