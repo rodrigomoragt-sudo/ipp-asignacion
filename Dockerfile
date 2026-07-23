@@ -10,7 +10,13 @@ COPY . .
 # Los .xlsx de datos/ no están en git (son datos, no código) y la carpeta
 # puede llegar vacía al desplegar. La app arranca igual sin datos_cargados
 # y espera a que se suban/sincronicen las tablas desde la UI.
-RUN mkdir -p datos datos_history plantillas
+#
+# IMPORTANTE: datos/ debe montarse como volumen persistente en el host
+# (Easypanel u otro), o cada restart/redeploy borra lo que se haya
+# subido o sincronizado — es el filesystem del contenedor, no un disco
+# durable. Bajo datos/ vive todo lo que necesita sobrevivir: los excels
+# canónicos, el historial (datos/_history/) y la base SQLite.
+RUN mkdir -p datos datos/_history plantillas
 
 ENV PORT=5050
 EXPOSE 5050

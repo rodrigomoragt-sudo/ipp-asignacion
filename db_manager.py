@@ -3,8 +3,12 @@ db_manager.py - Gestión de historial de cargas de datos con SQLite
 
 Cada carga (upload manual o sync desde Tableau) queda registrada como una
 fila nueva en el historial (nunca se sobreescribe), y se guarda un snapshot
-completo del archivo en datos_history/<tabla>/. Además se actualiza el
+completo del archivo en datos/_history/<tabla>/. Además se actualiza el
 archivo canónico en datos/<Tabla>.xlsx, que es el que lee generar_plan.py.
+
+Todo (excels canónicos, snapshots, base de datos SQLite) vive bajo datos/
+a propósito: en un despliegue en contenedor, montar UN solo volumen
+persistente ahí adentro es suficiente para que nada se pierda al reiniciar.
 """
 
 import sqlite3
@@ -15,9 +19,16 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-DB_PATH = "datos_planificador.db"
-HISTORY_DIR = Path("datos_history")
+# Todo lo que necesita sobrevivir un restart del contenedor vive bajo
+# datos/: el Excel canónico (obligatorio, generar_plan.py lo lee de ahí),
+# el historial de snapshots y la base de datos SQLite. Así, en producción
+# (Easypanel u otro host de contenedores) basta con montar UN volumen
+# persistente en /app/datos para que nada se pierda entre restarts —
+# sin volumen, cualquier archivo subido o sincronizado desaparece en el
+# siguiente restart/redeploy, aunque la subida en sí haya "funcionado".
 DATOS_DIR = Path("datos")
+HISTORY_DIR = DATOS_DIR / "_history"
+DB_PATH = str(DATOS_DIR / "planificador.db")
 
 # Nombre de tabla lógica -> nombre de archivo canónico esperado por generar_plan.py
 TABLAS = {
@@ -74,8 +85,8 @@ def _slug(tabla_nombre: str) -> str:
 class DatabaseManager:
     def __init__(self, db_path=DB_PATH):
         self.db_path = db_path
-        HISTORY_DIR.mkdir(exist_ok=True)
-        DATOS_DIR.mkdir(exist_ok=True)
+        DATOS_DIR.mkdir(parents=True, exist_ok=True)
+        HISTORY_DIR.mkdir(parents=True, exist_ok=True)
         self.init_db()
 
     def init_db(self):

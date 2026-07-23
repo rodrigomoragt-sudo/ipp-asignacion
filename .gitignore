@@ -36,7 +36,7 @@ plan_*.csv
 
 # Base de datos local y snapshots de historial (datos, no código)
 *.db
-datos_history/
+datos/_history/
 test_init.py
 
 # Credenciales locales (nunca subir)
