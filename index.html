@@ -860,14 +860,16 @@
                 return;
             }
 
-            // Procesar días de exclusión
+            // Procesar días de exclusión (el backend ya excluye automáticamente
+            // todo lo que quede después de finVisitas, así que si el campo está
+            // vacío no hay que forzar ningún default aquí)
             const excluyeDiasStr = document.getElementById('excluyeDias').value.trim();
             const excluyeDias = excluyeDiasStr ?
                 excluyeDiasStr.split(',').map(d => {
                     const num = parseInt(d.trim());
                     return !isNaN(num) ? num : null;
                 }).filter(d => d !== null)
-                : [28, 29, 30, 31];
+                : [];
 
             // Procesar días sin visita
             const diasNoVisitaStr = document.getElementById('diasNoVisita').value.trim();
