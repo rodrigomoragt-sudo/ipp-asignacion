@@ -96,6 +96,31 @@ def obtener_datos():
     except Exception as e:
         return jsonify({'error': f'Error calculando estadísticas: {e}'}), 500
 
+@app.route('/api/rutas/<int:zona>', methods=['GET'])
+def obtener_rutas_zona(zona):
+    """
+    Lista las rutas de una zona (con cantidad de clientes cada una) para que
+    el usuario pueda armar un orden manual antes de generar el plan.
+    """
+    if not datos_cargados or not generador:
+        return jsonify({'error': 'Datos no cargados'}), 500
+
+    try:
+        df = generador.df_cedis
+        zonas = df['Código Zona'].astype(int)
+        df_zona = df[zonas == zona]
+
+        if df_zona.empty:
+            return jsonify({'zona': zona, 'rutas': []})
+
+        conteo = df_zona.groupby(df_zona['Ruta'].astype(str))['Cliente: Código de Cliente'].count()
+        conteo = conteo.sort_index()  # mismo orden alfabético que usa el planificador por default
+
+        rutas = [{'ruta': ruta, 'clientes': int(n)} for ruta, n in conteo.items()]
+        return jsonify({'zona': zona, 'rutas': rutas})
+    except Exception as e:
+        return jsonify({'error': f'Error obteniendo rutas: {e}'}), 500
+
 @app.route('/api/generar-plan', methods=['POST'])
 def generar_plan():
     """Genera un plan con los parámetros especificados"""
@@ -141,6 +166,9 @@ def generar_plan():
         elif supervisor:
             supervisor = int(supervisor)
 
+        # Orden manual de rutas por zona (opcional): { "15": ["1203","1200","1201"], ... }
+        orden_rutas_por_zona = datos.get('orden_rutas_por_zona') or {}
+
         plan = generador.generar_plan(
             mes=mes,
             ano=ano,
@@ -149,7 +177,8 @@ def generar_plan():
             visitas_por_dia=visitas_por_dia,
             dias_exclusion=dias_exclusion,
             dias_sin_visita=dias_sin_visita,
-            supervisor=supervisor
+            supervisor=supervisor,
+            orden_rutas_por_zona=orden_rutas_por_zona
         )
 
         # Limpiar plan de valores NaN/infinitos antes de serializar

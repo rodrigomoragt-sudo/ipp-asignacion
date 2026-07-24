@@ -94,7 +94,8 @@ class GeneradorPlanVisitas:
         return 'Mantener', 4
 
     def generar_plan(self, mes=7, ano=2026, inicio_visitas=5, fin_visitas=27, visitas_por_dia=20,
-                     dias_exclusion=None, dias_sin_visita=None, supervisor=None):
+                     dias_exclusion=None, dias_sin_visita=None, supervisor=None,
+                     orden_rutas_por_zona=None):
         """
         Generar plan de visitas para un mes
 
@@ -107,12 +108,21 @@ class GeneradorPlanVisitas:
             dias_exclusion: Lista de días del mes sin visitas (ej: [28,29,30,31])
             dias_sin_visita: Lista de días de la semana sin visitas (0=Lun, 6=Dom)
             supervisor: Zona específica o None para todas
+            orden_rutas_por_zona: dict opcional {zona: [ruta1, ruta2, ...]} para forzar
+                el orden en que se visitan las rutas de esa zona (día 1 = primera ruta
+                de la lista, día 2 = segunda, etc., rotando igual que el modo automático).
+                Útil para casos puntuales (ej. rutas de menor cumplimiento que necesitan
+                prioridad esa semana). Si una zona no aparece aquí, sigue con el orden
+                automático (alfabético) de siempre — esto es 100% opcional y no cambia
+                nada para quien no lo use.
         """
 
         if dias_exclusion is None:
             dias_exclusion = []
         if dias_sin_visita is None:
             dias_sin_visita = [5, 6]  # Sábado y domingo por defecto
+        if orden_rutas_por_zona is None:
+            orden_rutas_por_zona = {}
 
         # Obtener días hábiles del mes
         dias_habiles = self._obtener_dias_habiles(ano, mes, inicio_visitas, fin_visitas,
@@ -137,8 +147,9 @@ class GeneradorPlanVisitas:
                 continue
 
             clientes = clientes_por_supervisor[zona]
+            orden_manual = orden_rutas_por_zona.get(str(zona))
             plan_supervisor = self._planificar_supervisor(
-                zona, clientes, dias_habiles, visitas_por_dia
+                zona, clientes, dias_habiles, visitas_por_dia, orden_manual=orden_manual
             )
             plan['supervisores'][str(zona)] = plan_supervisor
 
@@ -198,10 +209,14 @@ class GeneradorPlanVisitas:
 
         return supervisores
 
-    def _planificar_supervisor(self, zona, clientes, dias_habiles, visitas_por_dia):
+    def _planificar_supervisor(self, zona, clientes, dias_habiles, visitas_por_dia, orden_manual=None):
         """
         Planificar visitas para un supervisor
         CRITERIO: Cada DÍA una RUTA DIFERENTE rotando entre rutas
+
+        orden_manual: lista opcional de rutas en el orden en que deben visitarse
+            (día 1 = orden_manual[0], día 2 = orden_manual[1], ...). Si se omite,
+            se usa el orden alfabético automático de siempre.
         """
 
         # Filtrar clientes excluidos
@@ -219,8 +234,22 @@ class GeneradorPlanVisitas:
             clientes_por_ruta[ruta].sort(key=lambda x: x['prioridad'])
 
         # Crear lista de rutas rotables (CICLO)
-        rutas_ciclo = list(clientes_por_ruta.keys())
-        rutas_ciclo.sort()  # Ordenar alfabéticamente para consistencia
+        rutas_disponibles = set(clientes_por_ruta.keys())
+        if orden_manual:
+            # Rutas del orden manual que sí tienen clientes en esta zona, sin duplicados,
+            # y luego cualquier ruta restante (no mencionada) al final en orden alfabético
+            # para no perder clientes de rutas que el usuario no incluyó explícitamente.
+            vistas = set()
+            rutas_ciclo = []
+            for ruta in orden_manual:
+                ruta = str(ruta)
+                if ruta in rutas_disponibles and ruta not in vistas:
+                    rutas_ciclo.append(ruta)
+                    vistas.add(ruta)
+            restantes = sorted(rutas_disponibles - vistas)
+            rutas_ciclo.extend(restantes)
+        else:
+            rutas_ciclo = sorted(rutas_disponibles)  # Orden alfabético automático (default)
 
         plan_supervisor = {
             'zona': zona,
@@ -229,6 +258,7 @@ class GeneradorPlanVisitas:
             'clientes_excluidos': len(clientes_excluidos),
             'clientes_planificados': 0,
             'total_rutas': len(rutas_ciclo),
+            'orden_manual_aplicado': bool(orden_manual),
             'cronograma': []
         }
 

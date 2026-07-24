@@ -723,6 +723,54 @@
                 </div>
             </div>
 
+            <div class="config-section">
+                <h3>🔀 Orden Manual de Rutas por Zona (opcional)</h3>
+                <p style="margin-bottom: 15px;">
+                    Por defecto las rutas de cada zona se visitan en orden alfabético, rotando un día cada una.
+                    Si por un tema puntual (ej. rutas de menor cumplimiento) necesitas que ciertas rutas se
+                    visiten primero esta semana, elige la zona y define el orden aquí. Solo aplica a las
+                    zonas que configures — el resto sigue con el orden automático de siempre.
+                </p>
+
+                <div class="config-grid">
+                    <div class="form-group">
+                        <label for="zonaOrdenRutas">Zona</label>
+                        <select id="zonaOrdenRutas">
+                            <option value="">Selecciona una zona...</option>
+                            <option value="1">Zona 1</option><option value="2">Zona 2</option>
+                            <option value="3">Zona 3</option><option value="5">Zona 5</option>
+                            <option value="6">Zona 6</option><option value="7">Zona 7</option>
+                            <option value="8">Zona 8</option><option value="9">Zona 9</option>
+                            <option value="10">Zona 10</option><option value="11">Zona 11</option>
+                            <option value="12">Zona 12</option><option value="13">Zona 13</option>
+                            <option value="15">Zona 15</option><option value="16">Zona 16</option>
+                            <option value="17">Zona 17</option><option value="20">Zona 20</option>
+                            <option value="21">Zona 21</option><option value="25">Zona 25</option>
+                            <option value="26">Zona 26</option><option value="27">Zona 27</option>
+                            <option value="28">Zona 28</option><option value="30">Zona 30</option>
+                            <option value="31">Zona 31</option><option value="33">Zona 33</option>
+                            <option value="34">Zona 34</option><option value="36">Zona 36</option>
+                            <option value="37">Zona 37</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="justify-content: flex-end;">
+                        <button onclick="cargarRutasZona()">🔍 Ver rutas de esta zona</button>
+                    </div>
+                </div>
+
+                <div id="rutasZonaInfo" style="margin-top: 15px;"></div>
+
+                <div class="form-group" style="margin-top: 10px; display: none;" id="ordenRutasGroup">
+                    <label for="ordenRutasInput">Orden de visita (edita el orden de las rutas, separadas por coma)</label>
+                    <input type="text" id="ordenRutasInput" placeholder="Ej: 1203,1200,1201">
+                    <div class="button-group" style="margin-top: 10px;">
+                        <button onclick="guardarOrdenRutaZona()" style="background: #28a745;">✓ Guardar orden para esta zona</button>
+                    </div>
+                </div>
+
+                <div id="ordenesConfiguradosContainer" style="margin-top: 20px;"></div>
+            </div>
+
             <div id="mensajePlan"></div>
         </div>
 
@@ -778,6 +826,9 @@
             plan: null,
             supervisores: {}
         };
+
+        // Orden manual de rutas por zona (opcional): { "15": ["1203","1200","1201"], ... }
+        let ordenRutasPorZona = {};
 
         const API_URL = '/api';
 
@@ -859,6 +910,98 @@
             document.getElementById('supervisoresBody').innerHTML = tableHtml;
         }
 
+        // Consultar rutas disponibles de una zona (para armar el orden manual)
+        async function cargarRutasZona() {
+            const zona = document.getElementById('zonaOrdenRutas').value;
+            const infoDiv = document.getElementById('rutasZonaInfo');
+            const grupoOrden = document.getElementById('ordenRutasGroup');
+
+            if (!zona) {
+                mostrarNotificacion('error', 'Selecciona una zona primero');
+                return;
+            }
+
+            infoDiv.innerHTML = '<div class="loading"><div class="spinner" style="width:20px;height:20px;"></div></div>';
+            grupoOrden.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_URL}/rutas/${zona}`);
+                const resultado = await response.json();
+
+                if (resultado.error) {
+                    infoDiv.innerHTML = `<div class="message error">${resultado.error}</div>`;
+                    return;
+                }
+
+                if (resultado.rutas.length === 0) {
+                    infoDiv.innerHTML = '<div class="message info">Esta zona no tiene rutas con clientes.</div>';
+                    return;
+                }
+
+                const listaRutas = resultado.rutas.map(r => `${r.ruta} (${r.clientes} clientes)`).join(', ');
+                infoDiv.innerHTML = `<div class="message info"><strong>Rutas de la Zona ${zona}:</strong> ${listaRutas}</div>`;
+
+                // Pre-llenar el input con el orden guardado si existe, si no con el orden alfabético actual
+                const ordenActual = ordenRutasPorZona[zona] || resultado.rutas.map(r => r.ruta);
+                document.getElementById('ordenRutasInput').value = ordenActual.join(',');
+                grupoOrden.style.display = 'flex';
+            } catch (error) {
+                infoDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Guardar el orden manual de rutas para la zona seleccionada
+        function guardarOrdenRutaZona() {
+            const zona = document.getElementById('zonaOrdenRutas').value;
+            const ordenStr = document.getElementById('ordenRutasInput').value.trim();
+
+            if (!zona || !ordenStr) {
+                mostrarNotificacion('error', 'Selecciona una zona y define el orden de rutas');
+                return;
+            }
+
+            const orden = ordenStr.split(',').map(r => r.trim()).filter(r => r !== '');
+            ordenRutasPorZona[zona] = orden;
+
+            mostrarNotificacion('success', `Orden guardado para Zona ${zona}`);
+            renderOrdenesConfigurados();
+        }
+
+        // Quitar el orden manual de una zona (vuelve al orden automático)
+        function quitarOrdenRutaZona(zona) {
+            delete ordenRutasPorZona[zona];
+            renderOrdenesConfigurados();
+        }
+
+        // Mostrar la lista de zonas con orden manual configurado
+        function renderOrdenesConfigurados() {
+            const container = document.getElementById('ordenesConfiguradosContainer');
+            const zonas = Object.keys(ordenRutasPorZona);
+
+            if (zonas.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = `
+                <strong>Órdenes manuales configurados para este plan:</strong>
+                <div class="table-responsive" style="margin-top: 10px;">
+                    <table>
+                        <thead><tr><th>Zona</th><th>Orden de Rutas</th><th></th></tr></thead>
+                        <tbody>
+                            ${zonas.map(z => `
+                                <tr>
+                                    <td><strong>Zona ${z}</strong></td>
+                                    <td>${ordenRutasPorZona[z].join(' → ')}</td>
+                                    <td><button class="secondary" style="padding:6px 12px; font-size:0.85em;" onclick="quitarOrdenRutaZona('${z}')">✕ Quitar</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
         // Generar plan
         async function generarPlan() {
             const mes = parseInt(document.getElementById('mes').value) || 7;
@@ -908,7 +1051,8 @@
                         visitas_por_dia: visitasPorDia,
                         dias_exclusion: excluyeDias,
                         dias_sin_visita: diasNoVisita,
-                        supervisor: supervisor
+                        supervisor: supervisor,
+                        orden_rutas_por_zona: ordenRutasPorZona
                     })
                 });
 
@@ -949,7 +1093,10 @@
                 if (datos.cronograma && datos.cronograma.length > 0) {
                     cronogramaHtml += `
                         <div class="config-section" style="margin-top: 20px;">
-                            <h4 style="color: #667eea; margin-bottom: 15px;">📍 ZONA ${zona} - Cronograma Diario</h4>
+                            <h4 style="color: #667eea; margin-bottom: 15px;">
+                                📍 ZONA ${zona} - Cronograma Diario
+                                ${datos.orden_manual_aplicado ? '<span class="status-badge" style="background:#ffa94d; color:white; margin-left:10px;">🔀 Orden manual</span>' : ''}
+                            </h4>
                             <div class="table-responsive">
                                 <table style="width: 100%; font-size: 0.9em;">
                                     <thead>
