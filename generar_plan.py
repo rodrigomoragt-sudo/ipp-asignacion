@@ -181,6 +181,34 @@ class GeneradorPlanVisitas:
 
         return dias_habiles
 
+    # Mapea el texto de "Días de visita" del maestro a weekday() de Python
+    # (0=Lunes ... 6=Domingo). Se compara sin tildes ni mayúsculas.
+    _DIAS_SEMANA = {
+        'lunes': 0, 'martes': 1, 'miercoles': 2, 'jueves': 3,
+        'viernes': 4, 'sabado': 5, 'domingo': 6,
+    }
+
+    @classmethod
+    def _parsear_dias_visita(cls, texto):
+        """
+        "Miércoles; Sábado" -> {2, 5}. Devuelve set vacío si no hay dato
+        legible, lo que el planificador interpreta como "sin restricción".
+        """
+        if texto is None or not pd.notna(texto):
+            return set()
+
+        # Normaliza tildes para que "Miércoles" y "Miercoles" coincidan
+        normalizado = str(texto).lower()
+        for con_tilde, sin_tilde in (('á', 'a'), ('é', 'e'), ('í', 'i'), ('ó', 'o'), ('ú', 'u')):
+            normalizado = normalizado.replace(con_tilde, sin_tilde)
+
+        dias = set()
+        for parte in normalizado.replace(',', ';').split(';'):
+            dia = cls._DIAS_SEMANA.get(parte.strip())
+            if dia is not None:
+                dias.add(dia)
+        return dias
+
     def _agrupar_clientes_por_supervisor(self):
         """Agrupar todos los clientes por supervisor"""
         supervisores = defaultdict(list)
@@ -201,6 +229,7 @@ class GeneradorPlanVisitas:
                 'segmento': str(segmento) if pd.notna(segmento) else '',
                 'clasificacion': clasificacion,
                 'prioridad': prioridad,
+                'dias_visita': self._parsear_dias_visita(row.get('Días de visita')),
                 'visitado_en_plan': False,
                 'fecha_visita': None
             }
@@ -265,8 +294,6 @@ class GeneradorPlanVisitas:
         # Distribución por segmento
         resumen_segmentos = defaultdict(int)
 
-        # Índices para cada ruta (para saber qué cliente tomar siguiente)
-        cliente_idx_por_ruta = {ruta: 0 for ruta in rutas_ciclo}
         ruta_actual_idx = 0
 
         for dia_idx, dia_data in enumerate(dias_habiles):
@@ -279,30 +306,32 @@ class GeneradorPlanVisitas:
             else:
                 continue
 
-            # Asignar 20 clientes de la ruta actual
+            # Asignar hasta 20 clientes de la ruta actual, pero SOLO los que
+            # atienden visitas en este día de la semana según el maestro CEDIS.
+            # Sin este filtro se agendaba a un cliente de "Lunes; Jueves" un martes.
             clientes_en_ruta = clientes_por_ruta[ruta_actual]
-            cliente_idx = cliente_idx_por_ruta[ruta_actual]
+            dia_semana_actual = dia_data['dia_semana']
 
-            while visitantes_asignados < visitas_por_dia and cliente_idx < len(clientes_en_ruta):
-                cliente = clientes_en_ruta[cliente_idx]
+            for cliente in clientes_en_ruta:
+                if visitantes_asignados >= visitas_por_dia:
+                    break
+                if cliente['visitado_en_plan']:
+                    continue
+                # Sin días declarados = sin restricción (se puede visitar cualquier día hábil)
+                if cliente['dias_visita'] and dia_semana_actual not in cliente['dias_visita']:
+                    continue
 
-                if not cliente['visitado_en_plan']:
-                    visitas_dia.append({
-                        'codigo_cliente': cliente['codigo'],
-                        'ruta': cliente['ruta'],
-                        'segmento': cliente['segmento'],
-                        'clasificacion': cliente['clasificacion'],
-                        'prioridad': cliente['prioridad']
-                    })
-                    cliente['visitado_en_plan'] = True
-                    cliente['fecha_visita'] = dia_data['fecha']
-                    resumen_segmentos[cliente['clasificacion']] += 1
-                    visitantes_asignados += 1
-
-                cliente_idx += 1
-
-            # Guardar posición para próxima vez que visitemos esta ruta
-            cliente_idx_por_ruta[ruta_actual] = cliente_idx
+                visitas_dia.append({
+                    'codigo_cliente': cliente['codigo'],
+                    'ruta': cliente['ruta'],
+                    'segmento': cliente['segmento'],
+                    'clasificacion': cliente['clasificacion'],
+                    'prioridad': cliente['prioridad']
+                })
+                cliente['visitado_en_plan'] = True
+                cliente['fecha_visita'] = dia_data['fecha']
+                resumen_segmentos[cliente['clasificacion']] += 1
+                visitantes_asignados += 1
 
             if visitas_dia:
                 plan_supervisor['cronograma'].append({
