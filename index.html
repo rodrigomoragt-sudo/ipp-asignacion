@@ -847,11 +847,24 @@
                 const data = await response.json();
 
                 if (!response.ok || data.error) {
+                    const faltantes = data.tablas_faltantes || [];
+                    const total = 4;
+                    const cargadas = total - faltantes.length;
+
+                    // Lista de verificación: muestra qué ya entró y qué falta,
+                    // en vez de un mensaje genérico que parece un fallo.
+                    const checklist = faltantes.length
+                        ? `<ul style="margin: 10px 0 0 20px;">${faltantes
+                              .map(t => `<li>${t}</li>`).join('')}</ul>`
+                        : '';
+
                     document.getElementById('statsDashboard').innerHTML = `
                         <div class="message info" style="grid-column: 1 / -1;">
-                            Todavía no hay datos cargados. Sube <strong>Clientes CEDIS</strong> y
-                            <strong>Clientes Equipo Frío</strong>, y sincroniza <strong>IPP</strong> desde
-                            Tableau más abajo para activar el planificador.
+                            <strong>Carga inicial: ${cargadas} de ${total} tablas listas.</strong>
+                            ${faltantes.length ? `<p style="margin: 10px 0 0;">Falta cargar:</p>${checklist}` : ''}
+                            <p style="margin: 10px 0 0; font-size: 0.9em;">
+                                Sube los Excel más abajo o sincroniza las tablas IPP desde Tableau.
+                            </p>
                         </div>
                     `;
                     document.getElementById('supervisoresBody').innerHTML =
@@ -1612,14 +1625,30 @@
                 const resultado = await response.json();
 
                 if (resultado.success) {
-                    statusDiv.innerHTML = `<div style="background: #e8f5e9; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745;">
-                        <strong style="color: #28a745;">${tabla} actualizado</strong>
+                    const pendientes = resultado.tablas_faltantes || [];
+                    // Verde cuando ya se puede planificar; ámbar cuando la carga fue
+                    // correcta pero aún faltan otras tablas (no es un error).
+                    const color = pendientes.length ? '#f0ad4e' : '#28a745';
+                    const fondo = pendientes.length ? '#fff8e6' : '#e8f5e9';
+                    const titulo = pendientes.length
+                        ? `${tabla} cargado — faltan ${pendientes.length} tabla(s)`
+                        : `${tabla} cargado — listo para planificar`;
+
+                    statusDiv.innerHTML = `<div style="background: ${fondo}; padding: 15px; border-radius: 6px; border-left: 4px solid ${color};">
+                        <strong style="color: ${color};">${titulo}</strong>
                         <p style="margin: 10px 0; font-size: 0.9em;">${resultado.mensaje}</p>
                     </div>`;
-                    mostrarNotificacion('success', 'Datos actualizados correctamente');
-                    limpiarUpload();
+
+                    mostrarNotificacion('success', pendientes.length
+                        ? `${tabla} cargado (${resultado.registros} registros)`
+                        : 'Todas las tablas cargadas — ya puedes generar el plan');
+
+                    // Limpia solo el selector de archivo: el mensaje de arriba debe
+                    // permanecer visible (antes se borraba al instante y obligaba a
+                    // recargar la página a mano para saber si la carga funcionó).
+                    limpiarSeleccionArchivo();
                     cargarHistorial();
-                    setTimeout(() => loadData(), 1000);
+                    loadData();
                 } else {
                     statusDiv.innerHTML = `<div style="background: #ffebee; padding: 15px; border-radius: 6px; border-left: 4px solid #dc3545;">
                         <strong style="color: #dc3545;">Error al subir</strong>
@@ -1631,11 +1660,16 @@
             }
         }
 
+        // Deja el archivo seleccionado en blanco pero conserva el mensaje de estado,
+        // para que tras una carga exitosa el usuario siga viendo el resultado.
+        function limpiarSeleccionArchivo() {
+            document.getElementById('fileInput').value = '';
+        }
+
+        // Cancelar: sí borra todo (selección y mensaje).
         function limpiarUpload() {
-            const fileInput = document.getElementById('fileInput');
-            const statusDiv = document.getElementById('uploadStatus');
-            fileInput.value = '';
-            statusDiv.innerHTML = '';
+            limpiarSeleccionArchivo();
+            document.getElementById('uploadStatus').innerHTML = '';
         }
 
         // Cargar datos al iniciar

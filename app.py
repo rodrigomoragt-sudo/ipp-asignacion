@@ -68,7 +68,14 @@ def obtener_datos():
     estático, para que subir/sincronizar una tabla se refleje de inmediato.
     """
     if not datos_cargados or not generador:
-        return jsonify({'error': 'No hay datos disponibles'}), 500
+        # Estado normal mientras se hace la carga inicial, no un fallo del
+        # servidor: se responde 200 con el detalle de qué tablas faltan para
+        # que la UI guíe al usuario en vez de mostrar un error rojo.
+        return jsonify({
+            'error': 'No hay datos disponibles',
+            'sin_datos': True,
+            'tablas_faltantes': _tablas_faltantes(),
+        }), 200
 
     try:
         df_cedis = generador.df_cedis
@@ -294,16 +301,45 @@ def obtener_estadisticas():
     except FileNotFoundError:
         return jsonify({'error': 'No hay plan generado'}), 400
 
+def _tablas_faltantes():
+    """
+    Nombres de las tablas cuyo Excel canónico todavía no existe en datos/.
+    Se usa para distinguir "aún faltan tablas por cargar" (situación normal
+    mientras se hace la carga inicial) de un error real de lectura.
+    """
+    return [
+        nombre for nombre, archivo in TABLAS.items()
+        if not os.path.exists(os.path.join('datos', archivo))
+    ]
+
+
 def _recargar_generador():
-    """Reinicia el generador para que tome los archivos canónicos más recientes"""
+    """
+    Reinicia el generador para que tome los archivos canónicos más recientes.
+
+    Devuelve (ok, error, faltantes):
+      - ok=True                      -> las 4 tablas están cargadas y el plan ya se puede generar
+      - ok=False con faltantes       -> NO es un error: aún faltan tablas por subir
+      - ok=False sin faltantes       -> error real (archivo corrupto, columna faltante, etc.)
+    """
     global generador, datos_cargados
+
+    faltantes = _tablas_faltantes()
+    if faltantes:
+        # Todavía no están las 4 tablas: no tiene sentido intentar cargar el
+        # planificador, y fallar aquí haría ver como error algo esperado
+        # durante la carga inicial.
+        datos_cargados = False
+        generador = None
+        return False, None, faltantes
+
     try:
         generador = GeneradorPlanVisitas()
         datos_cargados = True
-        return True, None
+        return True, None, []
     except Exception as e:
         datos_cargados = False
-        return False, str(e)
+        return False, str(e), []
 
 
 @app.route('/api/tablas', methods=['GET'])
@@ -340,16 +376,28 @@ def cargar_tabla():
         finally:
             os.unlink(tmp_path)
 
-        ok, error = _recargar_generador()
-        if not ok:
+        ok, error, faltantes = _recargar_generador()
+
+        # Error real de lectura (archivo corrupto, columnas que no calzan...).
+        # Solo aquí corresponde marcar la carga como fallida.
+        if not ok and error:
             return jsonify({
                 'success': False,
                 'error': f'Archivo guardado pero falló al recargar datos: {error}'
             }), 500
 
+        base = f'{tabla_nombre} actualizado (v{resultado["version_numero"]}) — {resultado["registros"]} registros'
+        if faltantes:
+            # La carga fue exitosa; solo faltan otras tablas para poder planificar.
+            mensaje = f'{base}. Falta cargar: {", ".join(faltantes)}.'
+        else:
+            mensaje = base
+
         return jsonify({
             'success': True,
-            'mensaje': f'{tabla_nombre} actualizado (v{resultado["version_numero"]}) — {resultado["registros"]} registros',
+            'mensaje': mensaje,
+            'listo_para_planificar': ok,
+            'tablas_faltantes': faltantes,
             **resultado
         })
 
@@ -370,10 +418,15 @@ def restaurar_version(version_id):
     """Restaura una versión anterior como la actual (rollback)"""
     try:
         resultado = db.restaurar_version(version_id)
-        ok, error = _recargar_generador()
-        if not ok:
+        ok, error, faltantes = _recargar_generador()
+        if not ok and error:
             return jsonify({'success': False, 'error': f'Restaurado pero falló al recargar: {error}'}), 500
-        return jsonify({'success': True, **resultado})
+        return jsonify({
+            'success': True,
+            'listo_para_planificar': ok,
+            'tablas_faltantes': faltantes,
+            **resultado
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 
@@ -394,10 +447,12 @@ def sync_tableau_ipp_actual():
         if not resultado.get('success'):
             return jsonify(resultado), 400
 
-        ok, error = _recargar_generador()
-        if not ok:
+        ok, error, faltantes = _recargar_generador()
+        if not ok and error:
             return jsonify({'success': False, 'error': f'Sincronizado pero falló al recargar: {error}'}), 500
 
+        resultado['listo_para_planificar'] = ok
+        resultado['tablas_faltantes'] = faltantes
         return jsonify(resultado)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -423,10 +478,12 @@ def sync_tableau_ipp_3meses():
         if not resultado.get('success'):
             return jsonify(resultado), 400
 
-        ok, error = _recargar_generador()
-        if not ok:
+        ok, error, faltantes = _recargar_generador()
+        if not ok and error:
             return jsonify({'success': False, 'error': f'Sincronizado pero falló al recargar: {error}'}), 500
 
+        resultado['listo_para_planificar'] = ok
+        resultado['tablas_faltantes'] = faltantes
         return jsonify(resultado)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
