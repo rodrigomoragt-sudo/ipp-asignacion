@@ -530,8 +530,8 @@
             </div>
 
             <div class="config-section">
-                <h3>🔄 Sincronizar IPP desde Tableau</h3>
-                <p style="margin-bottom: 15px;">Descarga automáticamente los clientes IPP encuestados directamente desde el reporte de Tableau — ya no es necesario subir estos Excel a mano.</p>
+                <h3>🔄 Sincronizar IPP</h3>
+                <p style="margin-bottom: 15px;">Descarga automáticamente los clientes IPP encuestados directamente desde el reporte de datos — ya no es necesario subir estos Excel a mano.</p>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px;">
                     <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745;">
@@ -547,7 +547,7 @@
                             </select>
                             <input type="number" id="syncAnoActual" value="2026" style="width: 90px; padding: 8px;">
                         </div>
-                        <button onclick="syncTableauMesActual()" style="width: 100%; background: #28a745;">⬇ Sincronizar desde Tableau</button>
+                        <button onclick="syncTableauMesActual()" style="width: 100%; background: #28a745;">⬇ Sincronizar Datos</button>
                     </div>
 
                     <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid #667eea;">
@@ -564,7 +564,7 @@
                             </select>
                             <input type="number" id="syncAno3" value="2026" style="width: 90px; padding: 8px;">
                         </div>
-                        <button onclick="syncTableauUltimosMeses()" style="width: 100%;">⬇ Sincronizar desde Tableau</button>
+                        <button onclick="syncTableauUltimosMeses()" style="width: 100%;">⬇ Sincronizar Datos</button>
                     </div>
                 </div>
                 <div id="tableauSyncStatus" style="margin-top: 15px;"></div>
@@ -594,7 +594,7 @@
 
             <div class="config-section">
                 <h3>🕘 Historial de Cargas</h3>
-                <p style="margin-bottom: 15px;">Cada carga (manual o desde Tableau) queda registrada. Puedes restaurar una versión anterior si algo sale mal.</p>
+                <p style="margin-bottom: 15px;">Cada carga (manual o sincronizada) queda registrada. Puedes restaurar una versión anterior si algo sale mal.</p>
                 <div class="table-responsive">
                     <table id="historialTable">
                         <thead>
@@ -714,6 +714,26 @@
                     <div class="form-group">
                         <label for="diasNoVisita">Días sin visitas en la semana (0=Lun, 1=Mar, 2=Mié, 3=Jue, 4=Vie, 5=Sáb, 6=Dom)</label>
                         <input type="text" id="diasNoVisita" placeholder="Ej: 5,6" value="5,6">
+                    </div>
+                </div>
+
+                <div class="config-section" style="margin-top: 15px; background: #eef1ff;">
+                    <h3 style="margin-bottom: 10px;">Criterios de exclusión IPP (opcional)</h3>
+                    <p style="margin-bottom: 15px;">
+                        Por defecto se excluye del plan a los clientes ya encuestados este mes y a los
+                        encuestados en los últimos meses. Si este periodo el negocio decide empezar de
+                        cero sin ver el histórico IPP, marca el criterio que corresponda solo para esta
+                        planificación puntual — no afecta los datos cargados ni el dashboard.
+                    </p>
+                    <div class="config-grid">
+                        <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="ignorarIppMesActual" style="width: auto;">
+                            <label for="ignorarIppMesActual" style="margin: 0;">No excluir por IPP Mes Actual</label>
+                        </div>
+                        <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="ignorarIpp3Meses" style="width: auto;">
+                            <label for="ignorarIpp3Meses" style="margin: 0;">No excluir por IPP Últimos Meses</label>
+                        </div>
                     </div>
                 </div>
 
@@ -863,7 +883,7 @@
                             <strong>Carga inicial: ${cargadas} de ${total} tablas listas.</strong>
                             ${faltantes.length ? `<p style="margin: 10px 0 0;">Falta cargar:</p>${checklist}` : ''}
                             <p style="margin: 10px 0 0; font-size: 0.9em;">
-                                Sube los Excel más abajo o sincroniza las tablas IPP desde Tableau.
+                                Sube los Excel más abajo o sincroniza las tablas IPP.
                             </p>
                         </div>
                     `;
@@ -1049,6 +1069,9 @@
                 }).filter(d => d !== null)
                 : [5, 6];
 
+            const ignorarIppMesActual = document.getElementById('ignorarIppMesActual').checked;
+            const ignorarIpp3Meses = document.getElementById('ignorarIpp3Meses').checked;
+
             const mensajeDiv = document.getElementById('mensajePlan');
             mensajeDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Generando plan...</p></div>';
 
@@ -1065,7 +1088,9 @@
                         dias_exclusion: excluyeDias,
                         dias_sin_visita: diasNoVisita,
                         supervisor: supervisor,
-                        orden_rutas_por_zona: ordenRutasPorZona
+                        orden_rutas_por_zona: ordenRutasPorZona,
+                        ignorar_ipp_mes_actual: ignorarIppMesActual,
+                        ignorar_ipp_3meses: ignorarIpp3Meses
                     })
                 });
 
@@ -1441,7 +1466,7 @@
             const ano = parseInt(document.getElementById('syncAnoActual').value);
             const statusDiv = document.getElementById('tableauSyncStatus');
 
-            statusDiv.innerHTML = '<div class="loading"><div class="spinner" style="width:20px;height:20px;"></div><p style="margin:0;">Sincronizando con Tableau...</p></div>';
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner" style="width:20px;height:20px;"></div><p style="margin:0;">Sincronizando datos...</p></div>';
 
             try {
                 const response = await fetch(`${API_URL}/sync-tableau/ipp-mes-actual`, {
@@ -1453,7 +1478,7 @@
 
                 if (resultado.success) {
                     statusDiv.innerHTML = `<div class="message success"><strong>✓ IPP Mes Actual actualizado</strong> — v${resultado.version_numero}, ${resultado.registros} registros</div>`;
-                    mostrarNotificacion('success', 'Sincronizado desde Tableau');
+                    mostrarNotificacion('success', 'Sincronizado correctamente');
                     cargarHistorial();
                     loadData();
                 } else {
@@ -1476,7 +1501,7 @@
                 return;
             }
 
-            statusDiv.innerHTML = '<div class="loading"><div class="spinner" style="width:20px;height:20px;"></div><p style="margin:0;">Sincronizando con Tableau...</p></div>';
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner" style="width:20px;height:20px;"></div><p style="margin:0;">Sincronizando datos...</p></div>';
 
             try {
                 const response = await fetch(`${API_URL}/sync-tableau/ipp-3meses`, {
@@ -1488,7 +1513,7 @@
 
                 if (resultado.success) {
                     statusDiv.innerHTML = `<div class="message success"><strong>✓ IPP Últimos Meses actualizado</strong> — v${resultado.version_numero}, ${resultado.registros} registros</div>`;
-                    mostrarNotificacion('success', 'Sincronizado desde Tableau');
+                    mostrarNotificacion('success', 'Sincronizado correctamente');
                     cargarHistorial();
                     loadData();
                 } else {
@@ -1515,7 +1540,7 @@
                 tbody.innerHTML = filas.map(f => {
                     const fecha = new Date(f.fecha_carga).toLocaleString('es-GT');
                     const origenBadge = f.origen === 'tableau'
-                        ? '<span class="status-badge status-scheduled">Tableau</span>'
+                        ? '<span class="status-badge status-scheduled">Sincronizado</span>'
                         : f.origen === 'rollback'
                             ? '<span class="status-badge status-pending">Restaurado</span>'
                             : '<span class="status-badge status-completed">Manual</span>';

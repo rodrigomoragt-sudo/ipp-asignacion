@@ -176,6 +176,12 @@ def generar_plan():
         # Orden manual de rutas por zona (opcional): { "15": ["1203","1200","1201"], ... }
         orden_rutas_por_zona = datos.get('orden_rutas_por_zona') or {}
 
+        # Ignorar criterios de exclusión IPP para esta planificación puntual
+        # (ej: el negocio decide empezar de cero un trimestre sin ver histórico IPP).
+        # Por defecto ambos False => se aplican las dos exclusiones, como corresponde.
+        ignorar_ipp_mes_actual = bool(datos.get('ignorar_ipp_mes_actual', False))
+        ignorar_ipp_3meses = bool(datos.get('ignorar_ipp_3meses', False))
+
         plan = generador.generar_plan(
             mes=mes,
             ano=ano,
@@ -185,7 +191,9 @@ def generar_plan():
             dias_exclusion=dias_exclusion,
             dias_sin_visita=dias_sin_visita,
             supervisor=supervisor,
-            orden_rutas_por_zona=orden_rutas_por_zona
+            orden_rutas_por_zona=orden_rutas_por_zona,
+            ignorar_ipp_mes_actual=ignorar_ipp_mes_actual,
+            ignorar_ipp_3meses=ignorar_ipp_3meses
         )
 
         # Limpiar plan de valores NaN/infinitos antes de serializar

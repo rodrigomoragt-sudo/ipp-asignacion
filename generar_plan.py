@@ -26,6 +26,11 @@ class GeneradorPlanVisitas:
         # Clientes IPP encuestados en el mes actual (del archivo actual)
         self.clientes_ipp_mes_actual = self._cargar_clientes_ipp_mes_actual()
 
+        # Clientes IPP encuestados en los últimos meses (regla de 3 meses móviles).
+        # Documentada desde el diseño original (README/MANIFEST/RESUMEN_SISTEMA)
+        # pero nunca conectada a clasificar_cliente hasta ahora.
+        self.clientes_ipp_3meses = set(self.df_ipp['Cod Cliente'].unique())
+
     def _crear_dict_ipp(self):
         """Crear diccionario de clientes IPP con sus datos y fechas"""
         ipp_dict = {}
@@ -47,28 +52,36 @@ class GeneradorPlanVisitas:
         clientes_encuestados = set(self.df_ipp_actual['Cod Cliente'].unique())
         return clientes_encuestados
 
-    def clasificar_cliente(self, codigo_cliente, segmento):
+    def clasificar_cliente(self, codigo_cliente, segmento,
+                            ignorar_ipp_mes_actual=False, ignorar_ipp_3meses=False):
         """
         Clasificar cliente según PRIORIDADES CORRECTAS:
-        1. Equipo Frío (EF)
+        1. Equipo Frío (EF) — nunca se excluye por IPP, ni con mes actual ni
+           con 3 meses (así lo documenta el proyecto desde el origen).
         2. BLINDAR
         3. DESARROLLAR
         4. MANTENER
         5. OPTIMIZAR
-        + EXCLUIR: Ya encuestados en mes actual
+        + EXCLUIR: ya encuestados en el mes actual y/o en los últimos meses
+          (regla de 3 meses móviles), salvo que se pida ignorar ese criterio
+          para esta planificación puntual.
         """
         try:
             cod_int = int(codigo_cliente)
         except:
             cod_int = codigo_cliente
 
-        # EXCLUSION: Si ya fue encuestado en el mes actual, EXCLUIR
-        if cod_int in self.clientes_ipp_mes_actual:
-            return 'Excluido', 99
-
-        # Prioridad 1: EQUIPO FRÍO
+        # Prioridad 1: EQUIPO FRÍO — se evalúa ANTES que cualquier exclusión IPP
         if cod_int in self.clientes_ef_ids:
             return 'Equipo Frío', 1
+
+        # EXCLUSION: ya encuestado en el mes actual
+        if not ignorar_ipp_mes_actual and cod_int in self.clientes_ipp_mes_actual:
+            return 'Excluido', 99
+
+        # EXCLUSION: ya encuestado en los últimos meses (3 meses móviles)
+        if not ignorar_ipp_3meses and cod_int in self.clientes_ipp_3meses:
+            return 'Excluido', 99
 
         # Clasificar por segmento
         if segmento and pd.notna(segmento):
@@ -95,7 +108,8 @@ class GeneradorPlanVisitas:
 
     def generar_plan(self, mes=7, ano=2026, inicio_visitas=5, fin_visitas=27, visitas_por_dia=20,
                      dias_exclusion=None, dias_sin_visita=None, supervisor=None,
-                     orden_rutas_por_zona=None):
+                     orden_rutas_por_zona=None,
+                     ignorar_ipp_mes_actual=False, ignorar_ipp_3meses=False):
         """
         Generar plan de visitas para un mes
 
@@ -115,6 +129,12 @@ class GeneradorPlanVisitas:
                 prioridad esa semana). Si una zona no aparece aquí, sigue con el orden
                 automático (alfabético) de siempre — esto es 100% opcional y no cambia
                 nada para quien no lo use.
+            ignorar_ipp_mes_actual: si True, no excluye a los ya encuestados este mes
+                (solo para esta planificación puntual; no afecta los datos cargados).
+            ignorar_ipp_3meses: si True, no excluye a los encuestados en los últimos
+                meses (regla de 3 meses móviles). Por defecto ambas exclusiones están
+                activas — este parámetro es para casos puntuales donde el negocio
+                decide empezar de cero sin ver el histórico IPP de ese periodo.
         """
 
         if dias_exclusion is None:
@@ -129,7 +149,10 @@ class GeneradorPlanVisitas:
                                                    dias_exclusion, dias_sin_visita)
 
         # Agrupar clientes por supervisor
-        clientes_por_supervisor = self._agrupar_clientes_por_supervisor()
+        clientes_por_supervisor = self._agrupar_clientes_por_supervisor(
+            ignorar_ipp_mes_actual=ignorar_ipp_mes_actual,
+            ignorar_ipp_3meses=ignorar_ipp_3meses
+        )
 
         plan = {
             'mes': mes,
@@ -209,7 +232,7 @@ class GeneradorPlanVisitas:
                 dias.add(dia)
         return dias
 
-    def _agrupar_clientes_por_supervisor(self):
+    def _agrupar_clientes_por_supervisor(self, ignorar_ipp_mes_actual=False, ignorar_ipp_3meses=False):
         """Agrupar todos los clientes por supervisor"""
         supervisores = defaultdict(list)
 
@@ -220,7 +243,11 @@ class GeneradorPlanVisitas:
             ruta = row['Ruta']
 
             # Clasificar cliente
-            clasificacion, prioridad = self.clasificar_cliente(int(codigo), segmento)
+            clasificacion, prioridad = self.clasificar_cliente(
+                int(codigo), segmento,
+                ignorar_ipp_mes_actual=ignorar_ipp_mes_actual,
+                ignorar_ipp_3meses=ignorar_ipp_3meses
+            )
 
             cliente = {
                 'codigo': int(codigo),
